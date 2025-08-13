@@ -11,34 +11,27 @@
   .surface{background:#0e141c}.card{background:#131a24}.muted{color:#94a3b8}.accent{color:#ffd54a}
   .shadow-smooth{box-shadow:0 10px 30px rgba(0,0,0,.35)}.num{font-variant-numeric:tabular-nums}
 
-  /* Movement badge */
   .badge{display:inline-flex;align-items:center;gap:.4rem;border-radius:9999px;padding:.35rem .75rem;line-height:1;font-weight:800;font-size:.95rem}
   .badge-up{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.45)}
   .badge-down{background:rgba(59,130,246,.15);color:#93c5fd;border:1px solid rgba(59,130,246,.45)}
   .badge-stay{background:rgba(148,163,184,.12);color:#cbd5e1;border:1px solid rgba(148,163,184,.30)}
-  .icon{width:1.05em;height:1.05em}
 
-  /* Score change styles */
   .score-up { color: #f87171; font-weight: 600; }
   .score-down { color: #60a5fa; font-weight: 600; }
   .score-same { color: #94a3b8; font-weight: 500; }
 
-  /* Top-3 decoration */
   .top1{border:1.5px solid rgba(255,215,0,.55);background:linear-gradient(180deg,rgba(255,215,0,.10),transparent 50%),#131a24}
   .top2{border:1.5px solid rgba(192,192,192,.55);background:linear-gradient(180deg,rgba(192,192,192,0.10),transparent 50%),#131a24}
   .top3{border:1.5px solid rgba(205,127,50,.55);background:linear-gradient(180deg,rgba(205,127,50,0.10),transparent 50%),#131a24}
   .medal{font-weight:900;letter-spacing:.02em}.medal-g{color:#ffd700}.medal-s{color:#c0c0c0}.medal-b{color:#cd7f32}
 
-  /* Movement animations */
   @keyframes popUp{0%{transform:translateY(4px) scale(.98);opacity:0}60%{transform:translateY(-2px) scale(1.02);opacity:1}100%{transform:translateY(0) scale(1)}}
   @keyframes popDown{0%{transform:translateY(-4px) scale(.98);opacity:0}60%{transform:translateY(2px) scale(1.02);opacity:1}100%{transform:translateY(0) scale(1)}}
   .animate-up{animation:popUp .45s cubic-bezier(.2,.8,.2,1)}.animate-down{animation:popDown .45s cubic-bezier(.2,.8,.2,1)}
 
-  /* Region rank chip */
   .chip{font-size:.75rem;padding:.35rem .6rem;border-radius:9999px;background:#0c1220;border:1px solid #1f2a3a}
   .chip-region{background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.35);color:#c7d2fe}
 
-  /* City line +30% */
   .city-line{font-size:1rem}
 </style>
 </head>
@@ -60,7 +53,6 @@
       <option value="">전체 지역</option>
     </select>
   </div>
-  <!-- 안내 문구: 우측 정렬 -->
   <p class="mt-2 text-sm text-indigo-200/80 text-right">※ 지역필터를 적용하면 지역별 랭킹을 보실 수 있습니다.</p>
 
   <div id="status" class="flex items-center gap-3 text-sm muted mt-4 mb-3">
@@ -78,9 +70,7 @@
 </div>
 
 <script>
-  /* =========================================================
-     1) 여기를 여러분의 엑셀 파일 경로로 바꾸세요 (GitHub raw 가능)
-     ========================================================= */
+  /* ===== 1) 여러분의 엑셀 파일 경로로 바꾸세요 (GitHub raw 가능) ===== */
   const LOCAL_XLSX_URL = "https://raw.githubusercontent.com/cobby8/BDR-ranking-u/main/%EB%8C%80%ED%95%99%EB%B6%80%EB%9E%AD%ED%82%B9_20250808.xlsx";
 
   let BASE=[], FILTERED=[], LOCAL_RANK_MAP=null;
@@ -101,68 +91,208 @@
   function medalSpan(r){return r===1?'<span class="medal medal-g">GOLD</span>':r===2?'<span class="medal medal-s">SILVER</span>':r===3?'<span class="medal medal-b">BRONZE</span>':''}
   function movementBadge(m){const n=Number(m); if(Number.isNaN(n)) return `<span class="badge badge-stay">— 0</span>`; if(n>0) return `<span class="badge badge-up animate-up">+${n}</span>`; if(n<0) return `<span class="badge badge-down animate-down">-${Math.abs(n)}</span>`; return `<span class="badge badge-stay">— 0</span>`}
 
-  /* === (변경) 점수변화 소수점 한자리 === */
+  /* === 점수변화 소수점 1자리 === */
   function scoreChangeBadge(val){
     if(val===null || val===undefined || val==="") return `<span class="score-same">-</span>`;
     const num = Number(val);
     if(Number.isNaN(num)) return `<span class="score-same">-</span>`;
-    const fixed = Math.abs(num).toFixed(1);           // ← 한 자리로 고정
+    const fixed = Math.abs(num).toFixed(1);
     if(num>0) return `<span class="score-up">+${fixed}</span>`;
     if(num<0) return `<span class="score-down">-${fixed}</span>`;
-    return `<span class="score-same">0.0</span>`;     // 0일 때도 0.0로 명시
+    return `<span class="score-same">0.0</span>`;
   }
 
   function buildLocalRankMap(){const reg=region.value;if(!reg){ LOCAL_RANK_MAP=null; return;}const subset = FILTERED.slice().sort((a,b)=> (a.rank??Infinity)-(b.rank??Infinity));const map = new Map();subset.forEach((item, idx) => {const key = item.team + "||" + (item.city || "");map.set(key, idx+1);});LOCAL_RANK_MAP = map;}
   function regionalBadge(team, city){if(!LOCAL_RANK_MAP) return '';const key = team + "||" + (city || "");const n = LOCAL_RANK_MAP.get(key);if(!n) return '';return `<span class="chip chip-region">지역 랭킹 ${n}위</span>`}
   function applyFilter(){const q=(search.value||'').toLowerCase(), reg=region.value;FILTERED=BASE.filter(it=>{const hay=(it.team+' '+it.city).toLowerCase();return (!q||hay.includes(q))&&(!reg||it.city===reg)});buildLocalRankMap();render();}
 
-  /* =========================================================
-     2) 대학교 동아리명 → 지역(시/도) 자동 추출 매핑
-        - 팀명에 대학명이 포함되면 해당 시/도로 입력
-        - 엑셀에 지역이 비어있을 때만 자동 보정
-     ========================================================= */
-  const UNIV_REGION_MAP = [
-    // 서울특별시
-    {re:/(서울대학교|서울대|SNU|연세대|연세대학교|고려대|고려대학교|한양대(?!ERICA)|성균관대|서강대|중앙대|한국외대|동국대|홍익대|건국대|광운대|세종대|국민대|숭실대|단국대 서울|서울시립대|시립대|한성대|상명대|명지대 서울|숙명여대|이화여대|가톨릭대 서울|KC대)/i, region:"서울특별시"},
-    // 부산광역시
-    {re:/(부산대|부산대학교|동아대|동의대|부경대)/i, region:"부산광역시"},
-    // 대구광역시
-    {re:/(경북대|경북대학교|영남대 대구|계명대)/i, region:"대구광역시"},
-    // 인천광역시
-    {re:/(인천대|인천대학교|인하대|인하대학교|가천대 글로벌|가천대 인천)/i, region:"인천광역시"},
-    // 광주광역시
-    {re:/(전남대 광주|조선대|호남대|광주과학기술원|GIST)/i, region:"광주광역시"},
-    // 대전광역시
-    {re:/(KAIST|카이스트|한밭대|배재대|우송대|충남대 대전)/i, region:"대전광역시"},
-    // 울산광역시
-    {re:/(울산대|울산대학교)/i, region:"울산광역시"},
-    // 세종
-    {re:/(고려대 세종|고대 세종|홍익대 세종|홍대 세종|KAIST 세종|카이스트 세종|충남대 세종)/i, region:"세종특별자치시"},
-    // 경기도
-    {re:/(아주대|아주대학교|한양대\s*ERICA|한양대학교\s*ERICA|경기대|단국대 죽전|단국대학교 죽전|가천대 성남|가천대학교 성남|성결대|수원대|용인대|용인대학교|한경국립대|경희대 국제|경희대학교 국제|중앙대 안성|명지대 용인)/i, region:"경기도"},
-    // 강원특별자치도
-    {re:/(강원대|강원대학교|한림대|상지대|경동대)/i, region:"강원특별자치도"},
-    // 충청북도
-    {re:/(충북대|충북대학교|서원대|한국교통대|교통대)/i, region:"충청북도"},
-    // 충청남도
-    {re:/(충남대|충남대학교(?! 대전)|선문대|단국대 천안|단국대학교 천안|순천향대|호서대|백석대)/i, region:"충청남도"},
-    // 전라북도
-    {re:/(전북대|전북대학교|군산대|원광대|우석대)/i, region:"전라북도"},
-    // 전라남도
-    {re:/(전남대 여수|목포대|순천대|동신대)/i, region:"전라남도"},
-    // 경상북도
-    {re:/(포항공대|포스텍|POSTECH|영남대(?! 대구)|금오공대|대구가톨릭대 경산)/i, region:"경상북도"},
-    // 경상남도
-    {re:/(경상국립대|경상대|창원대|인제대 김해|부산대 밀양)/i, region:"경상남도"},
-    // 제주특별자치도
-    {re:/(제주대|제주대학교)/i, region:"제주특별자치도"},
+  /* ===== 2) 지역명 키워드(팀명에 직접 포함 시 최우선) ===== */
+  const REGION_KEYWORDS = [
+    {re:/(서울|seoul)/i, region:"서울특별시"},
+    {re:/(부산|busan)/i, region:"부산광역시"},
+    {re:/(대구|daegu)/i, region:"대구광역시"},
+    {re:/(인천|incheon)/i, region:"인천광역시"},
+    {re:/(광주(?!과기)|gwangju)/i, region:"광주광역시"},
+    {re:/(대전|daejeon)/i, region:"대전광역시"},
+    {re:/(울산|ulsan)/i, region:"울산광역시"},
+    {re:/(세종|sejong)/i, region:"세종특별자치시"},
+    {re:/(경기|gyeonggi|수원|용인|성남|안산|안양|의정부|고양|부천|평택|광명|하남|남양주)/i, region:"경기도"},
+    {re:/(강원|gangwon|춘천|원주|강릉)/i, region:"강원특별자치도"},
+    {re:/(충북|chungbuk|청주|충주)/i, region:"충청북도"},
+    {re:/(충남|chungnam|천안|아산|서산|공주)/i, region:"충청남도"},
+    {re:/(전북|jeonbuk|전주|군산|익산)/i, region:"전라북도"},
+    {re:/(전남|jeonnam|순천|여수|목포)/i, region:"전라남도"},
+    {re:/(경북|gyeongbuk|포항|구미|경산)/i, region:"경상북도"},
+    {re:/(경남|gyeongnam|창원|김해|진주)/i, region:"경상남도"},
+    {re:/(제주|jeju)/i, region:"제주특별자치도"},
   ];
+
+  /* ===== 3) 캠퍼스 키워드 → 시/도 보정 ===== */
+  const CAMPUS_HINTS = [
+    {re:/(ERICA|에리카|안산)/i, region:"경기도"},
+    {re:/(용인|죽전)/i, region:"경기도"},
+    {re:/(천안|아산)/i, region:"충청남도"},
+    {re:/(세종)/i, region:"세종특별자치시"},
+    {re:/(안성)/i, region:"경기도"},
+    {re:/(수원)/i, region:"경기도"},
+    {re:/(춘천|원주|강릉)/i, region:"강원특별자치도"},
+    {re:/(경산)/i, region:"경상북도"},
+    {re:/(김해)/i, region:"경상남도"},
+    {re:/(밀양)/i, region:"경상남도"},
+    {re:/(여수|순천|목포)/i, region:"전라남도"},
+    {re:/(전주|군산|익산)/i, region:"전라북도"},
+  ];
+
+  /* ===== 4) 대학 키워드(한글/영문/약칭) → 시/도 =====
+     - 필요시 아래에 항목 추가만 하면 됩니다.
+  */
+  const UNIVERSITY_MAP = [
+    // 서울권
+    {re:/(서울대(학교)?|SNU|Seoul Nat(ional)? Univ)/i, region:"서울특별시"},
+    {re:/(연세대(학교)?|Yonsei)/i, region:"서울특별시"},
+    {re:/(고려대(학교)?|Korea Univ)/i, region:"서울특별시"},
+    {re:/(성균관대|Sungkyunkwan)/i, region:"서울특별시"},
+    {re:/(서강대|Sogang)/i, region:"서울특별시"},
+    {re:/(한양대(?!.*ERICA)|Hanyang(?!.*ERICA))/i, region:"서울특별시"},
+    {re:/(중앙대|Chung\-?Ang)/i, region:"서울특별시"},
+    {re:/(한국외대|HUFS)/i, region:"서울특별시"},
+    {re:/(동국대|Dongguk)/i, region:"서울특별시"},
+    {re:/(홍익대(?!.*세종)|Hongik(?!.*Sejong))/i, region:"서울특별시"},
+    {re:/(건국대|Konkuk)/i, region:"서울특별시"},
+    {re:/(광운대|Kwangwoon)/i, region:"서울특별시"},
+    {re:/(세종대(학)?|Sejong Univ(?!.*Sejong City))/i, region:"서울특별시"},
+    {re:/(국민대|Kookmin)/i, region:"서울특별시"},
+    {re:/(숭실대|Soongsil)/i, region:"서울특별시"},
+    {re:/(명지대(?!.*용인)|Myongji(?!.*Yongin))/i, region:"서울특별시"},
+    {re:/(서울시립대|시립대|UOS)/i, region:"서울특별시"},
+    {re:/(한성대|Hansung)/i, region:"서울특별시"},
+    {re:/(상명대(?!.*천안)|Sangmyung(?!.*Cheonan))/i, region:"서울특별시"},
+    {re:/(숙명여대|Sookmyung)/i, region:"서울특별시"},
+    {re:/(이화여대|Ewha)/i, region:"서울특별시"},
+    {re:/(가톨릭대(?!.*성모|부천|성남)|Catholic Univ of Korea(?!.*Bucheon|Seongnam))/i, region:"서울특별시"},
+
+    // 인천/경기
+    {re:/(한양대.*(ERICA|에리카))/i, region:"경기도"},
+    {re:/(경기대|Kyonggi Univ)/i, region:"경기도"},
+    {re:/(아주대|Ajou)/i, region:"경기도"},
+    {re:/(단국대.*(죽전|용인)|Dankook.*(Jukjeon|Yongin))/i, region:"경기도"},
+    {re:/(단국대(?!.*천안))/i, region:"경기도"},
+    {re:/(가천대(?!.*인천|글로벌)|Gachon(?!.*Incheon|Global))/i, region:"경기도"},
+    {re:/(명지대.*(용인))/i, region:"경기도"},
+    {re:/(성결대|Sungkyul)/i, region:"경기도"},
+    {re:/(수원대|Suwon Univ)/i, region:"경기도"},
+    {re:/(용인대|Yongin Univ)/i, region:"경기도"},
+    {re:/(한경국립대|Hankyong)/i, region:"경기도"},
+    {re:/(경희대.*(국제|수원)|Kyung Hee.*(Global|Suwon))/i, region:"경기도"},
+    {re:/(중앙대.*안성|Chung\-?Ang.*Anseong)/i, region:"경기도"},
+    {re:/(인천대|Incheon National|INU)/i, region:"인천광역시"},
+    {re:/(인하대|Inha)/i, region:"인천광역시"},
+    {re:/(가천대.*(인천|글로벌)|Gachon.*(Incheon|Global))/i, region:"인천광역시"},
+
+    // 강원
+    {re:/(강원대|Kangwon National|KNU\(Gangwon\))/i, region:"강원특별자치도"},
+    {re:/(한림대|Hallym)/i, region:"강원특별자치도"},
+    {re:/(상지대|Sangji)/i, region:"강원특별자치도"},
+    {re:/(경동대|Kyungdong)/i, region:"강원특별자치도"},
+
+    // 충북
+    {re:/(충북대|Chungbuk National)/i, region:"충청북도"},
+    {re:/(서원대|Seowon)/i, region:"충청북도"},
+    {re:/(한국교통대|Korea National Univ of Transportation)/i, region:"충청북도"},
+
+    // 충남/대전/세종
+    {re:/(충남대(?!.*세종)|Chungnam National(?!.*Sejong))/i, region:"대전광역시"},
+    {re:/(카이스트|KAIST)/i, region:"대전광역시"},
+    {re:/(한밭대|Hanbat)/i, region:"대전광역시"},
+    {re:/(배재대|Paichai|Ba( )?ejae)/i, region:"대전광역시"},
+    {re:/(우송대|Woosong)/i, region:"대전광역시"},
+    {re:/(선문대|Sun Moon)/i, region:"충청남도"},
+    {re:/(단국대.*천안|Dankook.*Cheonan)/i, region:"충청남도"},
+    {re:/(순천향대|Soonchunhyang)/i, region:"충청남도"},
+    {re:/(호서대|Hoseo)/i, region:"충청남도"},
+    {re:/(백석대|Baekseok)/i, region:"충청남도"},
+    {re:/(고려대.*세종|Korea Univ.*Sejong)/i, region:"세종특별자치시"},
+    {re:/(홍익대.*세종|Hongik.*Sejong)/i, region:"세종특별자치시"},
+    {re:/(충남대.*세종|Chungnam National.*Sejong)/i, region:"세종특별자치시"},
+
+    // 전북/전남/광주
+    {re:/(전북대|Chonbuk|Jeonbuk National)/i, region:"전라북도"},
+    {re:/(군산대|Kunsan)/i, region:"전라북도"},
+    {re:/(원광대|Wonkwang)/i, region:"전라북도"},
+    {re:/(우석대|Woosuk)/i, region:"전라북도"},
+    {re:/(전남대(?!.*여수)|Chonnam National(?!.*Yeosu))/i, region:"광주광역시"},
+    {re:/(조선대|Chosun)/i, region:"광주광역시"},
+    {re:/(호남대|Honam)/i, region:"광주광역시"},
+    {re:/(GIST|광주과학기술원)/i, region:"광주광역시"},
+    {re:/(전남대.*여수|Chonnam National.*Yeosu)/i, region:"전라남도"},
+    {re:/(목포대|Mokpo)/i, region:"전라남도"},
+    {re:/(순천대|Sunchon|Suncheon)/i, region:"전라남도"},
+    {re:/(동신대|Dongshin)/i, region:"전라남도"},
+
+    // 경북/대구
+    {re:/(경북대|Kyungpook National)/i, region:"대구광역시"},
+    {re:/(계명대|Keimyung)/i, region:"대구광역시"},
+    {re:/(영남대(?!.*대구)|Yeungnam(?!.*Daegu))/i, region:"경상북도"},
+    {re:/(금오공대|Kumoh National)/i, region:"경상북도"},
+    {re:/(대구가톨릭대.*경산|Daegu Catholic Univ.*Gyeongsan)/i, region:"경상북도"},
+
+    // 경남/부산/울산
+    {re:/(부산대(?!.*밀양)|Pusan National|Busan National)/i, region:"부산광역시"},
+    {re:/(동아대|Dong\-?A)/i, region:"부산광역시"},
+    {re:/(동의대|Dong\-Eui)/i, region:"부산광역시"},
+    {re:/(부경대|Pukyong National)/i, region:"부산광역시"},
+    {re:/(경상국립대|경상대|Gyeongsang National)/i, region:"경상남도"},
+    {re:/(창원대|Changwon National)/i, region:"경상남도"},
+    {re:/(인제대.*김해|Inje Univ.*Gimhae)/i, region:"경상남도"},
+    {re:/(부산대.*밀양|Pusan National.*Miryang|Busan National.*Miryang)/i, region:"경상남도"},
+    {re:/(울산대|Univ of Ulsan)/i, region:"울산광역시"},
+
+    // 제주
+    {re:/(제주대|Jeju National)/i, region:"제주특별자치도"},
+  ];
+
+  /* ===== 5) 정규화 유틸 ===== */
+  function normalizeTeamName(s){
+    if(!s) return "";
+    let t = String(s).toLowerCase();
+    t = t
+      .replace(/[()\[\]{}]/g," ")
+      .replace(/[^\w가-힣\s]/g," ")     // 특수문자 제거
+      .replace(/\s+/g," ")
+      .trim();
+    // 잡단어 제거(뒤섞여도 매칭되도록)
+    const junk = ['대학교','대학','대','농구','농구부','농구팀','농구동아리','동아리','클럽','club','basketball','university','univ','uni','campus','team'];
+    junk.forEach(word=>{
+      t = t.replace(new RegExp(`\\b${word}\\b`,'g')," ").replace(/\s+/g," ").trim();
+    });
+    return t;
+  }
+
+  function matchByList(list, raw){
+    for(const rule of list){
+      if(rule.re.test(raw)) return rule.region;
+    }
+    return "";
+  }
 
   function inferRegionFromTeam(teamName){
     if(!teamName) return "";
-    for(const rule of UNIV_REGION_MAP){
-      if(rule.re.test(teamName)) return rule.region;
-    }
+    const raw = teamName;
+    const norm = normalizeTeamName(teamName);
+
+    // 1) 팀명에 지역 키워드가 직접 들어있으면 최우선
+    let region = matchByList(REGION_KEYWORDS, raw) || matchByList(REGION_KEYWORDS, norm);
+    if(region) return region;
+
+    // 2) 대학 키워드(한/영/약칭)
+    region = matchByList(UNIVERSITY_MAP, raw) || matchByList(UNIVERSITY_MAP, norm);
+    if(region) return region;
+
+    // 3) 캠퍼스 힌트(ERICA/세종/천안/죽전/용인 등)
+    region = matchByList(CAMPUS_HINTS, raw) || matchByList(CAMPUS_HINTS, norm);
+    if(region) return region;
+
+    // 4) 실패 시 빈 문자열(엑셀 값 있으면 그게 사용됨)
     return "";
   }
 
@@ -170,7 +300,7 @@
     rowCount.textContent = FILTERED.length;
     list.innerHTML = FILTERED.map(it => {
       const scoreVal = Number(it.score);
-      const scoreText = isNaN(scoreVal) ? (it.score??'') : scoreVal.toFixed(1); // 점수도 한 자리
+      const scoreText = isNaN(scoreVal) ? (it.score??'') : scoreVal.toFixed(1);
       return `
       <div class="card shadow-smooth rounded-2xl border border-[#1f2a3a] px-4 sm:px-6 py-4 ${byRankClass(it.rank)}">
         <div class="grid grid-cols-12 items-center gap-3">
@@ -222,15 +352,15 @@
       const regionSet=new Set();
       BASE=rows.map((r,i)=>{
         const teamName = MAP.team ? r[MAP.team] : '';
-        const rawCity  = MAP.city ? r[MAP.city] : '';
+        const rawCity  = MAP.city ? (r[MAP.city]||'') : '';
 
-        // 지역 자동 보정: 엑셀에 비어있을 때만 팀명에서 추론
-        const inferred = rawCity ? rawCity : inferRegionFromTeam(String(teamName||""));
+        // 엑셀 값 우선, 비었으면 자동 추론
+        const autoCity = rawCity ? String(rawCity) : inferRegionFromTeam(String(teamName||""));
 
         const obj={
           rank:MAP.rank?Number(r[MAP.rank])||(i+1):(i+1),
           team:teamName || '',
-          city:inferred || '',
+          city:autoCity || '',
           score:MAP.score?r[MAP.score]:'',
           move:MAP.move?(r[MAP.move]===''?0:r[MAP.move]):0,
           scoreChange:MAP.scoreChange?(r[MAP.scoreChange] ?? 0):null,
@@ -251,7 +381,7 @@
       render();
     }catch(err){
       statusEl.classList.add('hidden'); errorEl.classList.remove('hidden');
-      errorEl.textContent=`데이터 로드 오류: ${err.message}. 파일이 같은 폴더에 있는지, 혹은 CORS(원격 파일)는 허용되는지 확인하세요.`;
+      errorEl.textContent=`데이터 로드 오류: ${err.message}. 파일 경로/이름 또는 CORS 설정을 확인하세요.`;
     }
   }
 
