@@ -1,1 +1,194 @@
 
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BDR 랭킹 - 대학부</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<meta name="color-scheme" content="dark" />
+<style>
+  .surface{background:#0e141c}.card{background:#131a24}.muted{color:#94a3b8}.accent{color:#ffd54a}
+  .shadow-smooth{box-shadow:0 10px 30px rgba(0,0,0,.35)}.num{font-variant-numeric:tabular-nums}
+
+  /* Movement badge */
+  .badge{display:inline-flex;align-items:center;gap:.4rem;border-radius:9999px;padding:.35rem .75rem;line-height:1;font-weight:800;font-size:.95rem}
+  .badge-up{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.45)}
+  .badge-down{background:rgba(59,130,246,.15);color:#93c5fd;border:1px solid rgba(59,130,246,.45)}
+  .badge-stay{background:rgba(148,163,184,.12);color:#cbd5e1;border:1px solid rgba(148,163,184,.30)}
+  .icon{width:1.05em;height:1.05em}
+
+  /* Score change styles */
+  .score-up { color: #f87171; font-weight: 600; }
+  .score-down { color: #60a5fa; font-weight: 600; }
+  .score-same { color: #94a3b8; font-weight: 500; }
+
+  /* Top-3 decoration */
+  .top1{border:1.5px solid rgba(255,215,0,.55);background:linear-gradient(180deg,rgba(255,215,0,.10),transparent 50%),#131a24}
+  .top2{border:1.5px solid rgba(192,192,192,.55);background:linear-gradient(180deg,rgba(192,192,192,0.10),transparent 50%),#131a24}
+  .top3{border:1.5px solid rgba(205,127,50,.55);background:linear-gradient(180deg,rgba(205,127,50,0.10),transparent 50%),#131a24}
+  .medal{font-weight:900;letter-spacing:.02em}.medal-g{color:#ffd700}.medal-s{color:#c0c0c0}.medal-b{color:#cd7f32}
+
+  /* Movement animations */
+  @keyframes popUp{0%{transform:translateY(4px) scale(.98);opacity:0}60%{transform:translateY(-2px) scale(1.02);opacity:1}100%{transform:translateY(0) scale(1)}}
+  @keyframes popDown{0%{transform:translateY(-4px) scale(.98);opacity:0}60%{transform:translateY(2px) scale(1.02);opacity:1}100%{transform:translateY(0) scale(1)}}
+  .animate-up{animation:popUp .45s cubic-bezier(.2,.8,.2,1)}.animate-down{animation:popDown .45s cubic-bezier(.2,.8,.2,1)}
+
+  /* Region rank chip */
+  .chip{font-size:.75rem;padding:.35rem .6rem;border-radius:9999px;background:#0c1220;border:1px solid #1f2a3a}
+  .chip-region{background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.35);color:#c7d2fe}
+
+  /* City line +30% */
+  .city-line{font-size:1rem}
+</style>
+</head>
+<body class="min-h-screen surface text-white antialiased">
+<div class="max-w-6xl mx-auto px-4 py-6">
+  <!-- 헤더 -->
+  <div class="flex flex-col items-center mb-6 w-full">
+    <img src="BDR(배경없음).png" alt="BDR Logo" class="h-20 object-contain mb-2">
+    <div class="flex items-end justify-between w-full">
+      <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">BDR 랭킹 - 대학부</h1>
+      <span id="lastUpdated" class="text-base font-medium muted"></span>
+    </div>
+  </div>
+
+  <!-- 필터 -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <input id="search" type="search" placeholder="팀명/지역 검색…" class="col-span-2 rounded-xl bg-[#0b111a] border border-[#1f2a3a] px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" />
+    <select id="region" class="rounded-xl bg-[#0b111a] border border-[#1f2a3a] px-4 py-3">
+      <option value="">전체 지역</option>
+    </select>
+  </div>
+  <!-- 안내 문구: 우측 정렬 -->
+  <p class="mt-2 text-sm text-indigo-200/80 text-right">※ 지역필터를 적용하면 지역별 랭킹을 보실 수 있습니다.</p>
+
+  <div id="status" class="flex items-center gap-3 text-sm muted mt-4 mb-3">
+    <div class="spinner" aria-hidden="true" style="width:24px;height:24px;border-radius:9999px;border:3px solid #1f2a3a;border-top-color:#60a5fa;animation:spin .9s linear infinite"></div>
+    <span>데이터 불러오는 중…</span>
+  </div>
+  <div id="error" class="hidden text-sm text-red-400 mb-3"></div>
+
+  <!-- 리스트 -->
+  <div id="list" class="space-y-2"></div>
+
+  <div class="mt-6 flex items-center justify-end">
+    <div class="muted text-sm">총 <span id="rowCount"></span>개 팀</div>
+  </div>
+</div>
+
+<script>
+  // ▼▼ 여기만 엑셀 파일명으로 바꿔 주세요 ▼▼
+  const LOCAL_XLSX_URL = "./https://github.com/cobby8/BDR-ranking-u/blob/main/%EB%8C%80%ED%95%99%EB%B6%80%EB%9E%AD%ED%82%B9_20250808.xlsx";
+  // 예) 파일이 같은 폴더에 있고 이름이 team_college.xlsx 라면 → "./team_college.xlsx"
+
+  let BASE=[], FILTERED=[], LOCAL_RANK_MAP=null;
+  const list=document.getElementById('list'), search=document.getElementById('search'), region=document.getElementById('region');
+  const rowCount=document.getElementById('rowCount'), statusEl=document.getElementById('status'), errorEl=document.getElementById('error');
+
+  function formatDate(d){const z=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}년 ${z(d.getMonth()+1)}월 ${z(d.getDate())}일`;}
+  document.getElementById('lastUpdated').textContent=formatDate(new Date());
+
+  const MAP_CANDIDATES={
+    rank:["랭킹","순위","rank"], team:["팀","팀명","name","team","클럽"], city:["지역","연고","도시","city","location"],
+    score:["점수","score","포인트","point"], move:["랭킹 변화","증감","변동","delta","updown","전주대비","전월대비"],
+    scoreChange:["점수 변화","점수 증감","score change","score diff","score_delta"]
+  };
+
+  function pickColumn(keys,cands){for(const c of cands){const f=keys.find(k=>(k||"").toLowerCase().includes(c.toLowerCase())); if(f) return f} return null}
+  function byRankClass(r){return r===1?'top1':r===2?'top2':r===3?'top3':''}
+  function medalSpan(r){return r===1?'<span class="medal medal-g">GOLD</span>':r===2?'<span class="medal medal-s">SILVER</span>':r===3?'<span class="medal medal-b">BRONZE</span>':''}
+  function movementBadge(m){const n=Number(m); if(Number.isNaN(n)) return `<span class="badge badge-stay">— 0</span>`; if(n>0) return `<span class="badge badge-up animate-up">+${n}</span>`; if(n<0) return `<span class="badge badge-down animate-down">-${Math.abs(n)}</span>`; return `<span class="badge badge-stay">— 0</span>`}
+  function scoreChangeBadge(val){if(val===null || val===undefined || val==="" || Number(val)===0) return `<span class="score-same">-</span>`; const num=Number(val); if(Number.isNaN(num)) return `<span class="score-same">-</span>`; if(num>0) return `<span class="score-up">+${num}</span>`; if(num<0) return `<span class="score-down">-${Math.abs(num)}</span>`; return `<span class="score-same">-</span>`}
+  function buildLocalRankMap(){const reg=region.value;if(!reg){ LOCAL_RANK_MAP=null; return;}const subset = FILTERED.slice().sort((a,b)=> (a.rank??Infinity)-(b.rank??Infinity));const map = new Map();subset.forEach((item, idx) => {const key = item.team + "||" + (item.city || "");map.set(key, idx+1);});LOCAL_RANK_MAP = map;}
+  function regionalBadge(team, city){if(!LOCAL_RANK_MAP) return '';const key = team + "||" + (city || "");const n = LOCAL_RANK_MAP.get(key);if(!n) return '';return `<span class="chip chip-region">지역 랭킹 ${n}위</span>`}
+  function applyFilter(){const q=(search.value||'').toLowerCase(), reg=region.value;FILTERED=BASE.filter(it=>{const hay=(it.team+' '+it.city).toLowerCase();return (!q||hay.includes(q))&&(!reg||it.city===reg)});buildLocalRankMap();render();}
+
+  function render(){
+    rowCount.textContent = FILTERED.length;
+    list.innerHTML = FILTERED.map(it => {
+      const scoreVal = Number(it.score);
+      const scoreText = isNaN(scoreVal) ? (it.score??'') : scoreVal.toFixed(1);
+      return `
+      <div class="card shadow-smooth rounded-2xl border border-[#1f2a3a] px-4 sm:px-6 py-4 ${byRankClass(it.rank)}">
+        <div class="grid grid-cols-12 items-center gap-3">
+          <div class="col-span-2 sm:col-span-1 flex flex-col items-start">
+            <div class="text-2xl sm:text-3xl font-extrabold num">${it.rank}</div>
+            <div class="text-[10px] mt-1">${medalSpan(it.rank)}</div>
+          </div>
+          <div class="col-span-3 sm:col-span-3 flex flex-col items-start gap-1">
+            ${movementBadge(it.move)}
+            ${regionalBadge(it.team, it.city)}
+          </div>
+          <div class="col-span-4 sm:col-span-5">
+            <div class="text-lg sm:text-xl font-semibold">${it.team}</div>
+            <div class="city-line muted mt-0.5">${it.city || ''}</div>
+          </div>
+          <div class="col-span-3 sm:col-span-3 text-right">
+            <div class="text-2xl sm:text-3xl font-extrabold accent num">${scoreText}</div>
+            <div class="mt-1 flex justify-end items-baseline gap-1">
+              <span class="text-lg">${scoreChangeBadge(it.scoreChange)}</span>
+              <span class="text-lg muted">점</span>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function loadLocal(){
+    statusEl.classList.remove('hidden'); errorEl.classList.add('hidden'); errorEl.textContent='';
+    try{
+      const res=await fetch(LOCAL_XLSX_URL,{cache:'no-store'});
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const ab=await res.arrayBuffer();
+      const wb=XLSX.read(new Uint8Array(ab),{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:true});
+      if(!rows.length) throw new Error('시트가 비어있습니다.');
+
+      const headerKeys=Object.keys(rows[0]);
+      const MAP={
+        rank:pickColumn(headerKeys,MAP_CANDIDATES.rank),
+        team:pickColumn(headerKeys,MAP_CANDIDATES.team),
+        city:pickColumn(headerKeys,MAP_CANDIDATES.city),
+        score:pickColumn(headerKeys,MAP_CANDIDATES.score),
+        move:pickColumn(headerKeys,MAP_CANDIDATES.move),
+        scoreChange:pickColumn(headerKeys,MAP_CANDIDATES.scoreChange)
+      };
+
+      const regionSet=new Set();
+      BASE=rows.map((r,i)=>{
+        const obj={
+          rank:MAP.rank?Number(r[MAP.rank])||(i+1):(i+1),
+          team:MAP.team?r[MAP.team]:'',
+          city:MAP.city?r[MAP.city]:'',
+          score:MAP.score?r[MAP.score]:'',
+          move:MAP.move?(r[MAP.move]===''?0:r[MAP.move]):0,
+          scoreChange:MAP.scoreChange?(r[MAP.scoreChange] || 0):null,
+          raw:r
+        };
+        if(obj.city) regionSet.add(obj.city);
+        return obj;
+      });
+
+      region.innerHTML='<option value="">전체 지역</option>'+
+        Array.from(regionSet).sort().map(v=>`<option value="${v}">${v}</option>`).join('');
+
+      statusEl.classList.add('hidden');
+      FILTERED=[...BASE];
+      buildLocalRankMap();
+      search.addEventListener('input',applyFilter);
+      region.addEventListener('change',applyFilter);
+      render();
+    }catch(err){
+      statusEl.classList.add('hidden'); errorEl.classList.remove('hidden');
+      errorEl.textContent=`데이터 로드 오류: ${err.message}. 파일이 같은 폴더에 있는지, 파일명이 정확한지 확인하세요.`;
+    }
+  }
+
+  loadLocal();
+</script>
+</body>
+</html>
