@@ -78,10 +78,10 @@
 </div>
 
 <script>
-  // ▼▼ 여기만 엑셀 파일명으로 바꿔 주세요 ▼▼
-const LOCAL_XLSX_URL = "https://raw.githubusercontent.com/cobby8/BDR-ranking-u/main/%EB%8C%80%ED%95%99%EB%B6%80%EB%9E%AD%ED%82%B9_20250808.xlsx";
-
-  // 예) 파일이 같은 폴더에 있고 이름이 team_college.xlsx 라면 → "./team_college.xlsx"
+  /* =========================================================
+     1) 여기를 여러분의 엑셀 파일 경로로 바꾸세요 (GitHub raw 가능)
+     ========================================================= */
+  const LOCAL_XLSX_URL = "https://raw.githubusercontent.com/cobby8/BDR-ranking-u/main/%EB%8C%80%ED%95%99%EB%B6%80%EB%9E%AD%ED%82%B9_20250808.xlsx";
 
   let BASE=[], FILTERED=[], LOCAL_RANK_MAP=null;
   const list=document.getElementById('list'), search=document.getElementById('search'), region=document.getElementById('region');
@@ -100,16 +100,77 @@ const LOCAL_XLSX_URL = "https://raw.githubusercontent.com/cobby8/BDR-ranking-u/m
   function byRankClass(r){return r===1?'top1':r===2?'top2':r===3?'top3':''}
   function medalSpan(r){return r===1?'<span class="medal medal-g">GOLD</span>':r===2?'<span class="medal medal-s">SILVER</span>':r===3?'<span class="medal medal-b">BRONZE</span>':''}
   function movementBadge(m){const n=Number(m); if(Number.isNaN(n)) return `<span class="badge badge-stay">— 0</span>`; if(n>0) return `<span class="badge badge-up animate-up">+${n}</span>`; if(n<0) return `<span class="badge badge-down animate-down">-${Math.abs(n)}</span>`; return `<span class="badge badge-stay">— 0</span>`}
-  function scoreChangeBadge(val){if(val===null || val===undefined || val==="" || Number(val)===0) return `<span class="score-same">-</span>`; const num=Number(val); if(Number.isNaN(num)) return `<span class="score-same">-</span>`; if(num>0) return `<span class="score-up">+${num}</span>`; if(num<0) return `<span class="score-down">-${Math.abs(num)}</span>`; return `<span class="score-same">-</span>`}
+
+  /* === (변경) 점수변화 소수점 한자리 === */
+  function scoreChangeBadge(val){
+    if(val===null || val===undefined || val==="") return `<span class="score-same">-</span>`;
+    const num = Number(val);
+    if(Number.isNaN(num)) return `<span class="score-same">-</span>`;
+    const fixed = Math.abs(num).toFixed(1);           // ← 한 자리로 고정
+    if(num>0) return `<span class="score-up">+${fixed}</span>`;
+    if(num<0) return `<span class="score-down">-${fixed}</span>`;
+    return `<span class="score-same">0.0</span>`;     // 0일 때도 0.0로 명시
+  }
+
   function buildLocalRankMap(){const reg=region.value;if(!reg){ LOCAL_RANK_MAP=null; return;}const subset = FILTERED.slice().sort((a,b)=> (a.rank??Infinity)-(b.rank??Infinity));const map = new Map();subset.forEach((item, idx) => {const key = item.team + "||" + (item.city || "");map.set(key, idx+1);});LOCAL_RANK_MAP = map;}
   function regionalBadge(team, city){if(!LOCAL_RANK_MAP) return '';const key = team + "||" + (city || "");const n = LOCAL_RANK_MAP.get(key);if(!n) return '';return `<span class="chip chip-region">지역 랭킹 ${n}위</span>`}
   function applyFilter(){const q=(search.value||'').toLowerCase(), reg=region.value;FILTERED=BASE.filter(it=>{const hay=(it.team+' '+it.city).toLowerCase();return (!q||hay.includes(q))&&(!reg||it.city===reg)});buildLocalRankMap();render();}
+
+  /* =========================================================
+     2) 대학교 동아리명 → 지역(시/도) 자동 추출 매핑
+        - 팀명에 대학명이 포함되면 해당 시/도로 입력
+        - 엑셀에 지역이 비어있을 때만 자동 보정
+     ========================================================= */
+  const UNIV_REGION_MAP = [
+    // 서울특별시
+    {re:/(서울대학교|서울대|SNU|연세대|연세대학교|고려대|고려대학교|한양대(?!ERICA)|성균관대|서강대|중앙대|한국외대|동국대|홍익대|건국대|광운대|세종대|국민대|숭실대|단국대 서울|서울시립대|시립대|한성대|상명대|명지대 서울|숙명여대|이화여대|가톨릭대 서울|KC대)/i, region:"서울특별시"},
+    // 부산광역시
+    {re:/(부산대|부산대학교|동아대|동의대|부경대)/i, region:"부산광역시"},
+    // 대구광역시
+    {re:/(경북대|경북대학교|영남대 대구|계명대)/i, region:"대구광역시"},
+    // 인천광역시
+    {re:/(인천대|인천대학교|인하대|인하대학교|가천대 글로벌|가천대 인천)/i, region:"인천광역시"},
+    // 광주광역시
+    {re:/(전남대 광주|조선대|호남대|광주과학기술원|GIST)/i, region:"광주광역시"},
+    // 대전광역시
+    {re:/(KAIST|카이스트|한밭대|배재대|우송대|충남대 대전)/i, region:"대전광역시"},
+    // 울산광역시
+    {re:/(울산대|울산대학교)/i, region:"울산광역시"},
+    // 세종
+    {re:/(고려대 세종|고대 세종|홍익대 세종|홍대 세종|KAIST 세종|카이스트 세종|충남대 세종)/i, region:"세종특별자치시"},
+    // 경기도
+    {re:/(아주대|아주대학교|한양대\s*ERICA|한양대학교\s*ERICA|경기대|단국대 죽전|단국대학교 죽전|가천대 성남|가천대학교 성남|성결대|수원대|용인대|용인대학교|한경국립대|경희대 국제|경희대학교 국제|중앙대 안성|명지대 용인)/i, region:"경기도"},
+    // 강원특별자치도
+    {re:/(강원대|강원대학교|한림대|상지대|경동대)/i, region:"강원특별자치도"},
+    // 충청북도
+    {re:/(충북대|충북대학교|서원대|한국교통대|교통대)/i, region:"충청북도"},
+    // 충청남도
+    {re:/(충남대|충남대학교(?! 대전)|선문대|단국대 천안|단국대학교 천안|순천향대|호서대|백석대)/i, region:"충청남도"},
+    // 전라북도
+    {re:/(전북대|전북대학교|군산대|원광대|우석대)/i, region:"전라북도"},
+    // 전라남도
+    {re:/(전남대 여수|목포대|순천대|동신대)/i, region:"전라남도"},
+    // 경상북도
+    {re:/(포항공대|포스텍|POSTECH|영남대(?! 대구)|금오공대|대구가톨릭대 경산)/i, region:"경상북도"},
+    // 경상남도
+    {re:/(경상국립대|경상대|창원대|인제대 김해|부산대 밀양)/i, region:"경상남도"},
+    // 제주특별자치도
+    {re:/(제주대|제주대학교)/i, region:"제주특별자치도"},
+  ];
+
+  function inferRegionFromTeam(teamName){
+    if(!teamName) return "";
+    for(const rule of UNIV_REGION_MAP){
+      if(rule.re.test(teamName)) return rule.region;
+    }
+    return "";
+  }
 
   function render(){
     rowCount.textContent = FILTERED.length;
     list.innerHTML = FILTERED.map(it => {
       const scoreVal = Number(it.score);
-      const scoreText = isNaN(scoreVal) ? (it.score??'') : scoreVal.toFixed(1);
+      const scoreText = isNaN(scoreVal) ? (it.score??'') : scoreVal.toFixed(1); // 점수도 한 자리
       return `
       <div class="card shadow-smooth rounded-2xl border border-[#1f2a3a] px-4 sm:px-6 py-4 ${byRankClass(it.rank)}">
         <div class="grid grid-cols-12 items-center gap-3">
@@ -160,13 +221,19 @@ const LOCAL_XLSX_URL = "https://raw.githubusercontent.com/cobby8/BDR-ranking-u/m
 
       const regionSet=new Set();
       BASE=rows.map((r,i)=>{
+        const teamName = MAP.team ? r[MAP.team] : '';
+        const rawCity  = MAP.city ? r[MAP.city] : '';
+
+        // 지역 자동 보정: 엑셀에 비어있을 때만 팀명에서 추론
+        const inferred = rawCity ? rawCity : inferRegionFromTeam(String(teamName||""));
+
         const obj={
           rank:MAP.rank?Number(r[MAP.rank])||(i+1):(i+1),
-          team:MAP.team?r[MAP.team]:'',
-          city:MAP.city?r[MAP.city]:'',
+          team:teamName || '',
+          city:inferred || '',
           score:MAP.score?r[MAP.score]:'',
           move:MAP.move?(r[MAP.move]===''?0:r[MAP.move]):0,
-          scoreChange:MAP.scoreChange?(r[MAP.scoreChange] || 0):null,
+          scoreChange:MAP.scoreChange?(r[MAP.scoreChange] ?? 0):null,
           raw:r
         };
         if(obj.city) regionSet.add(obj.city);
@@ -184,7 +251,7 @@ const LOCAL_XLSX_URL = "https://raw.githubusercontent.com/cobby8/BDR-ranking-u/m
       render();
     }catch(err){
       statusEl.classList.add('hidden'); errorEl.classList.remove('hidden');
-      errorEl.textContent=`데이터 로드 오류: ${err.message}. 파일이 같은 폴더에 있는지, 파일명이 정확한지 확인하세요.`;
+      errorEl.textContent=`데이터 로드 오류: ${err.message}. 파일이 같은 폴더에 있는지, 혹은 CORS(원격 파일)는 허용되는지 확인하세요.`;
     }
   }
 
