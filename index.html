@@ -106,6 +106,60 @@
   function regionalBadge(team, city){if(!LOCAL_RANK_MAP) return '';const key = team + "||" + (city || "");const n = LOCAL_RANK_MAP.get(key);if(!n) return '';return `<span class="chip chip-region">지역 랭킹 ${n}위</span>`}
   function applyFilter(){const q=(search.value||'').toLowerCase(), reg=region.value;FILTERED=BASE.filter(it=>{const hay=(it.team+' '+it.city).toLowerCase();return (!q||hay.includes(q))&&(!reg||it.city===reg)});buildLocalRankMap();render();}
 
+  /* ===== (A) 직접 매칭 오버라이드: 팀명(대학교+동아리) → 시/도 ===== */
+  const OVERRIDE_TEAMS = [
+    // 서울특별시
+    {re:/국민대학교\s*(탭|TAB)?/i, region:"서울특별시"},
+    {re:/국민대학교\s*쿠바/i, region:"서울특별시"},
+    {re:/숭실대학교\s*SSBC/i, region:"서울특별시"},
+    {re:/한국체육대학교\s*칸스/i, region:"서울특별시"},
+    {re:/경희대학교\s*(농쿠|존)/i, region:"서울특별시"},
+    {re:/한국외국어대학교\s*피버스/i, region:"서울특별시"},
+    {re:/명지대학교\s*(파인|돌핀스|돌핀|SWISH)/i, region:"서울특별시"},
+    {re:/광운대학교\s*카바/i, region:"서울특별시"},
+    {re:/상명대학교\s*(위너|리뉴)/i, region:"서울특별시"},
+    {re:/가톨릭대학교\s*(바스타즈|퀸텟)/i, region:"서울특별시"},
+    {re:/인덕대학교\s*야바/i, region:"서울특별시"},
+    {re:/명지전문대학교\s*카리스마/i, region:"서울특별시"},
+    {re:/삼육대학교\s*BGN/i, region:"서울특별시"},
+    {re:/한성대학교\s*UP/i, region:"서울특별시"},
+
+    // 경기도
+    {re:/한국항공대학교\s*(애비에이터스)?/i, region:"경기도"},
+    {re:/대림대학교\s*어라이브/i, region:"경기도"},
+    {re:/대진대학교\s*하운드/i, region:"경기도"},
+    {re:/한신대학교\s*더플라이트/i, region:"경기도"},
+    {re:/차의과학대학교\s*Chance/i, region:"경기도"},
+    {re:/강남대학교\s*스냅/i, region:"경기도"},
+    {re:/(동아방송(예술)?대학교|DIMA)\s*(아이솔레이션|isolation|아이솔)/i, region:"경기도"},
+    {re:/성결대학교\s*(프레스|PRESS)/i, region:"경기도"},
+
+    // 충청남도
+    {re:/한국공학대학교\s*덩키즈/i, region:"충청남도"},
+    {re:/한서대학교\s*(무브|HIBA)/i, region:"충청남도"},
+
+    // 충청북도
+    {re:/세명대학교\s*와이번즈/i, region:"충청북도"},
+    {re:/가톨릭꽃동네대학교\s*CKU/i, region:"충청북도"},
+
+    // 대전광역시
+    {re:/한남대학교\s*SOUL/i, region:"대전광역시"},
+    {re:/목원대학교\s*ACE/i, region:"대전광역시"},
+
+    // 강원특별자치도
+    {re:/한라대학교\s*HUB/i, region:"강원특별자치도"},
+
+    // 부산광역시
+    {re:/동서대학교\s*HOOK/i, region:"부산광역시"},
+  ];
+  function matchOverride(team){
+    if(!team) return "";
+    for(const rule of OVERRIDE_TEAMS){
+      if(rule.re.test(team)) return rule.region;
+    }
+    return "";
+  }
+
   /* ===== 지역 키워드 / 캠퍼스 힌트 / 대학 매핑 (간이 사전) ===== */
   const REGION_KEYWORDS = [
     {re:/(서울|seoul)/i, region:"서울특별시"},
@@ -202,16 +256,28 @@
     return t;
   }
   function matchByList(list, raw){ for(const rule of list){ if(rule.re.test(raw)) return rule.region; } return ""; }
+
   function inferRegionFromTeamLocal(teamName){
     if(!teamName) return "";
+    // ⬅️ (추가) 오버라이드 최우선
+    let region = matchOverride(teamName);
+    if(region) return region;
+
     const raw = teamName;
     const norm = normalizeTeamName(teamName);
-    let region = matchByList(REGION_KEYWORDS, raw) || matchByList(REGION_KEYWORDS, norm);
+
+    // 1) 팀명에 지역 키워드
+    region = matchByList(REGION_KEYWORDS, raw) || matchByList(REGION_KEYWORDS, norm);
     if(region) return region;
+
+    // 2) 대학 키워드(한/영/약칭)
     region = matchByList(UNIVERSITY_MAP, raw) || matchByList(UNIVERSITY_MAP, norm);
     if(region) return region;
+
+    // 3) 캠퍼스 힌트
     region = matchByList(CAMPUS_HINTS, raw) || matchByList(CAMPUS_HINTS, norm);
     if(region) return region;
+
     return "";
   }
 
@@ -240,7 +306,7 @@
     // 영문 패턴(University, Univ)
     const m2 = team.match(/([A-Za-z][A-Za-z\.\-\s]+?(University|Univ))/i);
     if(m2){ return m2[0].trim(); }
-    // 마지막 시도: 공백 앞쪽 토큰들
+    // 마지막 시도: 구분자 앞쪽
     return team.split(/[-–—·\|]/)[0].trim();
   }
   function mapTextToRegion(text){
@@ -327,7 +393,9 @@
       BASE=rows.map((r,i)=>{
         const teamName = MAP.team ? r[MAP.team] : '';
         const rawCity  = MAP.city ? (r[MAP.city]||'') : '';
-        const localCity = rawCity ? String(rawCity) : inferRegionFromTeamLocal(String(teamName||""));
+        // 엑셀 값 우선, 비면: 오버라이드 → 로컬 규칙
+        const overrideCity = matchOverride(String(teamName||""));
+        const localCity = rawCity ? String(rawCity) : (overrideCity || inferRegionFromTeamLocal(String(teamName||"")));
         const obj={
           rank:MAP.rank?Number(r[MAP.rank])||(i+1):(i+1),
           team:teamName || '',
