@@ -18,21 +18,18 @@
   .city-line{font-size:1.125rem}
   .title{letter-spacing:.2px}
 
-  /* ── 랭킹변화 배지(웹) – 중앙정렬 ─────────────────────── */
+  /* 랭킹변화 배지(웹) */
   .badge{border-radius:9999px;border:1px solid rgba(148,163,184,.34);line-height:1;font-weight:800;font-size:1rem}
   .badge-grid{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:28px;padding:4px 12px}
   .badge-pill{display:inline-flex;align-items:center;justify-content:center;height:28px;padding:4px 12px}
   .badge-up{background:rgba(239,68,68,.18);color:#fca5a5;border-color:rgba(239,68,68,.55)}
   .badge-down{background:rgba(59,130,246,.18);color:#93c5fd;border-color:rgba(59,130,246,.55)}
   .badge-stay{background:rgba(148,163,184,.14);color:#cbd5e1;border-color:rgba(148,163,184,.34)}
-
-  /* 아이콘(+/−/—) */
   .ico{width:16px;height:16px;position:relative;display:inline-block;vertical-align:middle}
   .ico::before,.ico::after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:currentColor;border-radius:2px}
   .ico.plus::before,.ico.minus::before,.ico.dash::before{width:14px;height:2px}
   .ico.plus::after{width:2px;height:14px}
-  .ico.minus::after{display:none}
-  .ico.dash::after{display:none}
+  .ico.minus::after,.ico.dash::after{display:none}
   .badge-grid .n{display:flex;align-items:center;height:18px;line-height:1}
 
   /* 점수 변화 색 */
@@ -54,8 +51,8 @@
   .chip{font-size:.85rem;padding:.4rem .7rem;border-radius:9999px;background:#0c1220;border:1px solid #1f2a3a}
   .chip-region{background:rgba(99,102,241,.14);border-color:rgba(99,102,241,.45);color:#c7d2fe}
 
-  /* ── 4:5 캡처 전용(다운로드) ─────────────────────── */
-  .ex-root{width:1080px;height:1350px;background:#0e141c;color:#fff;padding:24px;box-sizing:border-box;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,Pretendard,sans-serif;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}
+  /* 4:5 캡처 전용 */
+  .ex-root{width:1080px;height:1350px;background:#0e141c;color:#fff;padding:24px;box-sizing:border-box;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,Pretendard,sans-serif;-webkit-font-smoothing:antialiased}
   .ex-header{display:flex;flex-direction:column;align-items:center;margin-bottom:16px}
   .ex-row{display:flex;align-items:flex-end;justify-content:space-between;width:100%}
   .ex-title{font-size:40px;font-weight:800;letter-spacing:.2px}
@@ -63,13 +60,11 @@
   .ex-fit{width:100%;overflow:hidden;display:flex;justify-content:center}
   .ex-content{width:100%;transform-origin:top center}
   .ex-list{display:flex;flex-direction:column;gap:8px}
-
   .ex-card{background:#131a24;border:1px solid #1f2a3a;border-radius:16px;padding:14px 18px}
   .ex-grid{display:grid;grid-template-columns:80px 200px 1fr 220px;align-items:center;column-gap:16px}
   .ex-rank{display:flex;flex-direction:column;align-items:flex-start}
   .ex-rank-num{font-size:44px;font-weight:900}
   .ex-medal{font-size:11px;margin-top:3px}
-
   .ex-badges{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
   .ex-badge{border-radius:9999px;border:1px solid rgba(148,163,184,.34);font-size:18px;font-weight:800;line-height:1}
   .ex-badge.up{background:rgba(239,68,68,.18);color:#fca5a5;border-color:rgba(239,68,68,.55)}
@@ -82,7 +77,6 @@
   .ex-ico.plus::before,.ex-ico.minus::before,.ex-ico.dash::before{width:14px;height:2px}
   .ex-ico.plus::after{width:2px;height:14px}
   .ex-num{display:flex;align-items:center;height:18px;line-height:1}
-
   .ex-team{display:flex;flex-direction:column}
   .ex-team-name{font-size:34px;font-weight:800}
   .ex-city{font-size:20px;color:#94a3b8;margin-top:4px}
@@ -92,8 +86,6 @@
   .ex-up{color:#f87171;font-weight:800}
   .ex-down{color:#60a5fa;font-weight:800}
   .ex-same{color:#94a3b8;font-weight:700}
-
-  /* spinner */
   @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
@@ -142,8 +134,15 @@
 </div>
 
 <script>
-  /* 대학부 엑셀 (GitHub Raw) */
-  const LOCAL_XLSX_URL = "https://raw.githubusercontent.com/cobby8/BDR-ranking-u/main/%EB%8C%80%ED%95%99%EB%B6%80%EB%9E%AD%ED%82%B9_20250808.xlsx";
+  /* 1) 엑셀 여러 미러 URL: 순서대로 시도 */
+  const XLSX_URLS = [
+    // GitHub Raw
+    "https://raw.githubusercontent.com/cobby8/BDR-ranking-u/main/%EB%8C%80%ED%95%99%EB%B6%80%EB%9E%AD%ED%82%B9_20250808.xlsx",
+    // jsDelivr CDN
+    "https://cdn.jsdelivr.net/gh/cobby8/BDR-ranking-u/%EB%8C%80%ED%95%99%EB%B6%80%EB%9E%AD%ED%82%B9_20250808.xlsx",
+    // raw.githack CDN
+    "https://raw.githack.com/cobby8/BDR-ranking-u/main/%EB%8C%80%ED%95%99%EB%B6%80%EB%9E%AD%ED%82%B9_20250808.xlsx"
+  ];
 
   let BASE=[], FILTERED=[], LOCAL_RANK_MAP=null;
   const list=document.getElementById('list'), search=document.getElementById('search'), region=document.getElementById('region');
@@ -153,7 +152,6 @@
   function formatDate(d){const z=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}년 ${z(d.getMonth()+1)}월 ${z(d.getDate())}일`;}
   lastUpdated.textContent=formatDate(new Date());
 
-  /* 엑셀 헤더 자동 매핑 후보 */
   const MAP_CANDIDATES={
     rank:["랭킹","순위","rank"],
     team:["팀","팀명","name","team","클럽"],
@@ -226,7 +224,7 @@
     </div>`;
   }
 
-  /* ── 4:5 이미지 카드 ── */
+  /* 4:5 이미지 카드 */
   function exportCardHTML(it){
     const n=Number(it.move);
     const scoreText = isNaN(Number(it.score)) ? (it.score??'') : Number(it.score).toFixed(1);
@@ -260,4 +258,171 @@
         </div>
         <div class="ex-badges">
           ${moveHTML}
-          ${LOCAL_RANK_MAP ? `<span class="ex-badge ex-pill" style="background:rgba(99,102,241,.14);border-color:rgba(99,102,241,.45);color:#c
+          ${LOCAL_RANK_MAP ? `<span class="ex-badge ex-pill" style="background:rgba(99,102,241,.14);border-color:rgba(99,102,241,.45);color:#c7d2fe">지역 랭킹 ${localRank}위</span>` : ``}
+        </div>
+        <div class="ex-team">
+          <div class="ex-team-name">${it.team}</div>
+          <div class="ex-city">${it.city||''}</div>
+        </div>
+        <div class="ex-score">
+          <div class="ex-score-val num">${scoreText}</div>
+          <div class="ex-score-diff num">${diffHTML}<span class="ex-same">점</span></div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  /* 필터 & 렌더 */
+  function applyFilter(){
+    const q=(search.value||'').toLowerCase(), reg=region.value;
+    FILTERED=BASE.filter(it=>{
+      const hay=(it.team+' '+it.city).toLowerCase();
+      return (!q||hay.includes(q))&&(!reg||it.city===reg);
+    });
+    buildLocalRankMap(); renderScreen(); buildExportRanges();
+  }
+  const renderScreen=()=>{rowCount.textContent=FILTERED.length; list.innerHTML=FILTERED.map(cardHTML).join('');}
+
+  function buildExportRanges(){
+    const total=FILTERED.length, pageSize=10;
+    const pages=Math.ceil(total/pageSize)||1;
+    exportRangeEl.innerHTML=Array.from({length:pages},(_,i)=>{
+      const s=i*pageSize+1, e=Math.min((i+1)*pageSize,total);
+      return `<option value="${s}-${e}">${s}–${e}위</option>`;
+    }).join('');
+  }
+
+  /* ===== 안전한 fetch 유틸(타임아웃+미러 시도) ===== */
+  async function fetchArrayBufferWithTimeout(url, timeoutMs=12000){
+    const ctl = new AbortController();
+    const tid = setTimeout(()=>ctl.abort(), timeoutMs);
+    try{
+      const res = await fetch(url, {cache:'no-store', signal: ctl.signal});
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const ab = await res.arrayBuffer();
+      return ab;
+    } finally {
+      clearTimeout(tid);
+    }
+  }
+  async function loadFromMirrors(urls){
+    const tried = [];
+    for(const raw of urls){
+      const url = encodeURI(raw); // 한글/공백 안전 처리
+      try{
+        const ab = await fetchArrayBufferWithTimeout(url);
+        return {ab, url};
+      }catch(e){
+        tried.push(`${raw} → ${e.message||e}`);
+      }
+    }
+    throw new Error(`모든 데이터 소스 실패:\n${tried.join('\n')}`);
+  }
+
+  /* 엑셀 로드 (지역값은 엑셀 그대로 사용) */
+  async function loadLocal(){
+    statusEl.classList.remove('hidden'); errorEl.classList.add('hidden'); errorEl.textContent='';
+    try{
+      const {ab, url:usedUrl} = await loadFromMirrors(XLSX_URLS);
+      const wb=XLSX.read(new Uint8Array(ab),{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:true});
+      if(!rows.length) throw new Error('시트가 비어있습니다.');
+
+      const keys=Object.keys(rows[0]);
+      const map={
+        rank:pick(keys,MAP_CANDIDATES.rank),
+        team:pick(keys,MAP_CANDIDATES.team),
+        city:pick(keys,MAP_CANDIDATES.city),
+        score:pick(keys,MAP_CANDIDATES.score),
+        move:pick(keys,MAP_CANDIDATES.move),
+        scoreChange:pick(keys,MAP_CANDIDATES.scoreChange)
+      };
+
+      const regionSet=new Set();
+      BASE=rows.map((r,i)=>{
+        const o={
+          rank:map.rank?Number(r[map.rank])||(i+1):(i+1),
+          team:map.team?r[map.team]:'', 
+          city:map.city?(r[map.city]||''):'',
+          score:map.score?r[map.score]:'',
+          move:map.move?(r[map.move]===''?0:r[map.move]):0,
+          scoreChange:map.scoreChange?(r[map.scoreChange] ?? 0):null
+        };
+        if(o.city) regionSet.add(o.city);
+        return o;
+      });
+
+      region.innerHTML='<option value="">전체 지역</option>'+
+        Array.from(regionSet).sort().map(v=>`<option value="${v}">${v}</option>`).join('');
+
+      statusEl.classList.add('hidden');
+      FILTERED=[...BASE];
+      buildLocalRankMap();
+      renderScreen();
+      buildExportRanges();
+
+      // 디버그: 어떤 소스를 사용했는지 콘솔 표시(운영화면엔 보이지 않음)
+      console.log('[BDR-U] 데이터 소스:', usedUrl);
+
+      search.addEventListener('input',applyFilter);
+      region.addEventListener('change',applyFilter);
+    }catch(err){
+      statusEl.classList.add('hidden');
+      errorEl.classList.remove('hidden');
+      errorEl.innerHTML = `데이터 로드 오류: ${String(err.message||err)}<br><small>네트워크가 불안정하면 새로고침 해주세요.</small>`;
+      console.error('[BDR-U] load error', err);
+    }
+  }
+  loadLocal();
+
+  /* 4:5 이미지 다운로드 – 헤더 실측 + autoscale */
+  document.getElementById('btnExport').addEventListener('click', async ()=>{
+    const [s,e]=(exportRangeEl.value||'1-10').split('-').map(n=>parseInt(n,10));
+    const startIdx=Math.max(0,(s||1)-1), endIdx=Math.min(FILTERED.length,(e||10));
+    const slice=FILTERED.slice(startIdx,endIdx);
+
+    const stage=document.createElement('div'); stage.className='ex-root';
+    stage.innerHTML=`
+      <div class="ex-header" id="exHeader">
+        <img src="BDR(배경없음).png" alt="BDR Logo" style="height:82px;object-fit:contain;margin-bottom:10px" crossOrigin="anonymous">
+        <div class="ex-row">
+          <div class="ex-title">BDR 랭킹 - 대학부</div>
+          <div class="ex-date">${lastUpdated.textContent}</div>
+        </div>
+      </div>
+      <div class="ex-fit" id="exFit">
+        <div class="ex-content" id="exContent">
+          <div id="exportList" class="ex-list"></div>
+        </div>
+      </div>`;
+    document.body.appendChild(stage);
+
+    stage.querySelector('#exportList').innerHTML=slice.map(exportCardHTML).join('');
+
+    // 헤더 높이 반영 후 가용 높이
+    const headerH = stage.querySelector('#exHeader').offsetHeight;
+    const rootH = stage.clientHeight;
+    const guard = 16;
+    const fitH = rootH - headerH - guard;
+    stage.querySelector('#exFit').style.height = fitH + 'px';
+
+    // autoscale
+    const content = stage.querySelector('#exContent');
+    const contentH = content.scrollHeight;
+    const scale = Math.min(1, (fitH - 6) / contentH);
+    content.style.transform = `scale(${scale})`;
+    content.style.height = `${contentH * scale}px`;
+
+    try{
+      const canvas=await html2canvas(stage,{backgroundColor:'#0e141c',useCORS:true,allowTaint:false,width:1080,height:1350,windowWidth:1080,windowHeight:1350,scale:2});
+      const a=document.createElement('a');
+      a.download=`bdr_u_ranking_${s||1}-${e||10}_${new Date().toISOString().slice(0,10)}.png`;
+      a.href=canvas.toDataURL('image/png');
+      a.click();
+    }catch(e){alert('이미지 저장 오류: '+e.message);}
+    finally{stage.remove();}
+  });
+</script>
+</body>
+</html>
