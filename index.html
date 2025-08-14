@@ -10,25 +10,39 @@
 <style>
   .surface{background:#0e141c}.card{background:#131a24}.muted{color:#94a3b8}.accent{color:#ffd54a}
   .shadow-smooth{box-shadow:0 10px 30px rgba(0,0,0,.35)}.num{font-variant-numeric:tabular-nums}
+
+  /* Movement badge */
   .badge{display:inline-flex;align-items:center;gap:.4rem;border-radius:9999px;padding:.35rem .75rem;line-height:1;font-weight:800;font-size:.95rem}
   .badge-up{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.45)}
   .badge-down{background:rgba(59,130,246,.15);color:#93c5fd;border:1px solid rgba(59,130,246,.45)}
   .badge-stay{background:rgba(148,163,184,.12);color:#cbd5e1;border:1px solid rgba(148,163,184,.30)}
+  .icon{width:1.05em;height:1.05em}
+
+  /* Score change styles */
   .score-up { color: #f87171; font-weight: 600; }
   .score-down { color: #60a5fa; font-weight: 600; }
   .score-same { color: #94a3b8; font-weight: 500; }
+
+  /* Top-3 decoration */
   .top1{border:1.5px solid rgba(255,215,0,.55);background:linear-gradient(180deg,rgba(255,215,0,.10),transparent 50%),#131a24}
   .top2{border:1.5px solid rgba(192,192,192,.55);background:linear-gradient(180deg,rgba(192,192,192,0.10),transparent 50%),#131a24}
   .top3{border:1.5px solid rgba(205,127,50,.55);background:linear-gradient(180deg,rgba(205,127,50,0.10),transparent 50%),#131a24}
   .medal{font-weight:900;letter-spacing:.02em}.medal-g{color:#ffd700}.medal-s{color:#c0c0c0}.medal-b{color:#cd7f32}
+
+  /* Movement animations */
   @keyframes popUp{0%{transform:translateY(4px) scale(.98);opacity:0}60%{transform:translateY(-2px) scale(1.02);opacity:1}100%{transform:translateY(0) scale(1)}}
   @keyframes popDown{0%{transform:translateY(-4px) scale(.98);opacity:0}60%{transform:translateY(2px) scale(1.02);opacity:1}100%{transform:translateY(0) scale(1)}}
   .animate-up{animation:popUp .45s cubic-bezier(.2,.8,.2,1)}.animate-down{animation:popDown .45s cubic-bezier(.2,.8,.2,1)}
+
+  /* Region rank chip */
   .chip{font-size:.75rem;padding:.35rem .6rem;border-radius:9999px;background:#0c1220;border:1px solid #1f2a3a}
   .chip-region{background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.35);color:#c7d2fe}
+
+  /* City line */
   .city-line{font-size:1rem}
-  .btn{border:1px solid #1f2a3a;background:#0b111a;border-radius:12px;padding:.6rem 1rem}
-  .btn:disabled{opacity:.5;cursor:not-allowed}
+
+  /* Simple spinner keyframes (optional) */
+  @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body class="min-h-screen surface text-white antialiased">
@@ -42,17 +56,14 @@
     </div>
   </div>
 
-  <!-- 필터 + 액션 -->
+  <!-- 필터 -->
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
     <input id="search" type="search" placeholder="팀명/지역 검색…" class="col-span-2 rounded-xl bg-[#0b111a] border border-[#1f2a3a] px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" />
     <select id="region" class="rounded-xl bg-[#0b111a] border border-[#1f2a3a] px-4 py-3">
       <option value="">전체 지역</option>
     </select>
   </div>
-  <div class="mt-2 flex items-center justify-between">
-    <p class="text-sm text-indigo-200/80">※ 지역필터를 적용하면 지역별 랭킹을 보실 수 있습니다.</p>
-    <button id="enrichBtn" class="btn text-sm">웹검색으로 지역 보강</button>
-  </div>
+  <p class="mt-2 text-sm text-indigo-200/80 text-right">※ 지역필터를 적용하면 지역별 랭킹을 보실 수 있습니다.</p>
 
   <div id="status" class="flex items-center gap-3 text-sm muted mt-4 mb-3">
     <div class="spinner" aria-hidden="true" style="width:24px;height:24px;border-radius:9999px;border:3px solid #1f2a3a;border-top-color:#60a5fa;animation:spin .9s linear infinite"></div>
@@ -69,29 +80,44 @@
 </div>
 
 <script>
-  /* 1) 엑셀 파일 경로 */
+  /* ===== 엑셀 파일 경로 (GitHub Raw) ===== */
   const LOCAL_XLSX_URL = "https://raw.githubusercontent.com/cobby8/BDR-ranking-u/main/%EB%8C%80%ED%95%99%EB%B6%80%EB%9E%AD%ED%82%B9_20250808.xlsx";
 
   let BASE=[], FILTERED=[], LOCAL_RANK_MAP=null;
   const list=document.getElementById('list'), search=document.getElementById('search'), region=document.getElementById('region');
   const rowCount=document.getElementById('rowCount'), statusEl=document.getElementById('status'), errorEl=document.getElementById('error');
-  const enrichBtn=document.getElementById('enrichBtn');
 
   function formatDate(d){const z=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}년 ${z(d.getMonth()+1)}월 ${z(d.getDate())}일`;}
   document.getElementById('lastUpdated').textContent=formatDate(new Date());
 
+  /* 엑셀 헤더 자동 매핑 후보 */
   const MAP_CANDIDATES={
-    rank:["랭킹","순위","rank"], team:["팀","팀명","name","team","클럽"], city:["지역","연고","도시","city","location"],
-    score:["점수","score","포인트","point"], move:["랭킹 변화","증감","변동","delta","updown","전주대비","전월대비"],
+    rank:["랭킹","순위","rank"],
+    team:["팀","팀명","name","team","클럽"],
+    city:["지역","연고","도시","city","location"],
+    score:["점수","score","포인트","point"],
+    move:["랭킹 변화","증감","변동","delta","updown","전주대비","전월대비"],
     scoreChange:["점수 변화","점수 증감","score change","score diff","score_delta"]
   };
 
-  function pickColumn(keys,cands){for(const c of cands){const f=keys.find(k=>(k||"").toLowerCase().includes(c.toLowerCase())); if(f) return f} return null}
+  function pickColumn(keys,cands){
+    for(const c of cands){
+      const f=keys.find(k=>(k||"").toLowerCase().includes(c.toLowerCase()));
+      if(f) return f;
+    }
+    return null;
+  }
   function byRankClass(r){return r===1?'top1':r===2?'top2':r===3?'top3':''}
   function medalSpan(r){return r===1?'<span class="medal medal-g">GOLD</span>':r===2?'<span class="medal medal-s">SILVER</span>':r===3?'<span class="medal medal-b">BRONZE</span>':''}
-  function movementBadge(m){const n=Number(m); if(Number.isNaN(n)) return `<span class="badge badge-stay">— 0</span>`; if(n>0) return `<span class="badge badge-up animate-up">+${n}</span>`; if(n<0) return `<span class="badge badge-down animate-down">-${Math.abs(n)}</span>`; return `<span class="badge badge-stay">— 0</span>`}
+  function movementBadge(m){
+    const n=Number(m);
+    if(Number.isNaN(n)) return `<span class="badge badge-stay">— 0</span>`;
+    if(n>0) return `<span class="badge badge-up animate-up">+${n}</span>`;
+    if(n<0) return `<span class="badge badge-down animate-down">-${Math.abs(n)}</span>`;
+    return `<span class="badge badge-stay">— 0</span>`;
+  }
 
-  /* 점수변화 소수점 1자리 */
+  /* 점수변화 소수점 1자리 표시 */
   function scoreChangeBadge(val){
     if(val===null || val===undefined || val==="") return `<span class="score-same">-</span>`;
     const num = Number(val);
@@ -102,238 +128,34 @@
     return `<span class="score-same">0.0</span>`;
   }
 
-  function buildLocalRankMap(){const reg=region.value;if(!reg){ LOCAL_RANK_MAP=null; return;}const subset = FILTERED.slice().sort((a,b)=> (a.rank??Infinity)-(b.rank??Infinity));const map = new Map();subset.forEach((item, idx) => {const key = item.team + "||" + (item.city || "");map.set(key, idx+1);});LOCAL_RANK_MAP = map;}
-  function regionalBadge(team, city){if(!LOCAL_RANK_MAP) return '';const key = team + "||" + (city || "");const n = LOCAL_RANK_MAP.get(key);if(!n) return '';return `<span class="chip chip-region">지역 랭킹 ${n}위</span>`}
-  function applyFilter(){const q=(search.value||'').toLowerCase(), reg=region.value;FILTERED=BASE.filter(it=>{const hay=(it.team+' '+it.city).toLowerCase();return (!q||hay.includes(q))&&(!reg||it.city===reg)});buildLocalRankMap();render();}
-
-  /* ===== (A) 직접 매칭 오버라이드: 팀명(대학교+동아리) → 시/도 ===== */
-  const OVERRIDE_TEAMS = [
-    // 서울특별시
-    {re:/국민대학교\s*(탭|TAB)?/i, region:"서울특별시"},
-    {re:/국민대학교\s*쿠바/i, region:"서울특별시"},
-    {re:/숭실대학교\s*SSBC/i, region:"서울특별시"},
-    {re:/한국체육대학교\s*칸스/i, region:"서울특별시"},
-    {re:/경희대학교\s*(농쿠|존)/i, region:"서울특별시"},
-    {re:/한국외국어대학교\s*피버스/i, region:"서울특별시"},
-    {re:/명지대학교\s*(파인|돌핀스|돌핀|SWISH)/i, region:"서울특별시"},
-    {re:/광운대학교\s*카바/i, region:"서울특별시"},
-    {re:/상명대학교\s*(위너|리뉴)/i, region:"서울특별시"},
-    {re:/가톨릭대학교\s*(바스타즈|퀸텟)/i, region:"서울특별시"},
-    {re:/인덕대학교\s*야바/i, region:"서울특별시"},
-    {re:/명지전문대학교\s*카리스마/i, region:"서울특별시"},
-    {re:/삼육대학교\s*BGN/i, region:"서울특별시"},
-    {re:/한성대학교\s*UP/i, region:"서울특별시"},
-
-    // 경기도
-    {re:/한국항공대학교\s*(애비에이터스)?/i, region:"경기도"},
-    {re:/대림대학교\s*어라이브/i, region:"경기도"},
-    {re:/대진대학교\s*하운드/i, region:"경기도"},
-    {re:/한신대학교\s*더플라이트/i, region:"경기도"},
-    {re:/차의과학대학교\s*Chance/i, region:"경기도"},
-    {re:/강남대학교\s*스냅/i, region:"경기도"},
-    {re:/(동아방송(예술)?대학교|DIMA)\s*(아이솔레이션|isolation|아이솔)/i, region:"경기도"},
-    {re:/성결대학교\s*(프레스|PRESS)/i, region:"경기도"},
-
-    // 충청남도
-    {re:/한국공학대학교\s*덩키즈/i, region:"충청남도"},
-    {re:/한서대학교\s*(무브|HIBA)/i, region:"충청남도"},
-
-    // 충청북도
-    {re:/세명대학교\s*와이번즈/i, region:"충청북도"},
-    {re:/가톨릭꽃동네대학교\s*CKU/i, region:"충청북도"},
-
-    // 대전광역시
-    {re:/한남대학교\s*SOUL/i, region:"대전광역시"},
-    {re:/목원대학교\s*ACE/i, region:"대전광역시"},
-
-    // 강원특별자치도
-    {re:/한라대학교\s*HUB/i, region:"강원특별자치도"},
-
-    // 부산광역시
-    {re:/동서대학교\s*HOOK/i, region:"부산광역시"},
-  ];
-  function matchOverride(team){
-    if(!team) return "";
-    for(const rule of OVERRIDE_TEAMS){
-      if(rule.re.test(team)) return rule.region;
-    }
-    return "";
+  /* 지역 필터 선택 시, 해당 지역 내 상대 순위 배지용 맵 생성 */
+  function buildLocalRankMap(){
+    const reg=region.value;
+    if(!reg){ LOCAL_RANK_MAP=null; return; }
+    const subset = FILTERED.slice().sort((a,b)=> (a.rank??Infinity)-(b.rank??Infinity));
+    const map = new Map();
+    subset.forEach((item, idx) => {
+      const key = item.team + "||" + (item.city || "");
+      map.set(key, idx+1);
+    });
+    LOCAL_RANK_MAP = map;
+  }
+  function regionalBadge(team, city){
+    if(!LOCAL_RANK_MAP) return '';
+    const key = team + "||" + (city || "");
+    const n = LOCAL_RANK_MAP.get(key);
+    if(!n) return '';
+    return `<span class="chip chip-region">지역 랭킹 ${n}위</span>`;
   }
 
-  /* ===== 지역 키워드 / 캠퍼스 힌트 / 대학 매핑 (간이 사전) ===== */
-  const REGION_KEYWORDS = [
-    {re:/(서울|seoul)/i, region:"서울특별시"},
-    {re:/(부산|busan)/i, region:"부산광역시"},
-    {re:/(대구|daegu)/i, region:"대구광역시"},
-    {re:/(인천|incheon)/i, region:"인천광역시"},
-    {re:/(광주(?!과기)|gwangju)/i, region:"광주광역시"},
-    {re:/(대전|daejeon)/i, region:"대전광역시"},
-    {re:/(울산|ulsan)/i, region:"울산광역시"},
-    {re:/(세종|sejong)/i, region:"세종특별자치시"},
-    {re:/(경기|gyeonggi|수원|용인|성남|안산|안양|의정부|고양|부천|평택|광명|하남|남양주)/i, region:"경기도"},
-    {re:/(강원|gangwon|춘천|원주|강릉)/i, region:"강원특별자치도"},
-    {re:/(충북|chungbuk|청주|충주)/i, region:"충청북도"},
-    {re:/(충남|chungnam|천안|아산|서산|공주)/i, region:"충청남도"},
-    {re:/(전북|jeonbuk|전주|군산|익산)/i, region:"전라북도"},
-    {re:/(전남|jeonnam|순천|여수|목포)/i, region:"전라남도"},
-    {re:/(경북|gyeongbuk|포항|구미|경산)/i, region:"경상북도"},
-    {re:/(경남|gyeongnam|창원|김해|진주|양산)/i, region:"경상남도"},
-    {re:/(제주|jeju)/i, region:"제주특별자치도"},
-  ];
-  const CAMPUS_HINTS = [
-    {re:/(ERICA|에리카|안산)/i, region:"경기도"},
-    {re:/(용인|죽전)/i, region:"경기도"},
-    {re:/(천안|아산)/i, region:"충청남도"},
-    {re:/(세종)/i, region:"세종특별자치시"},
-    {re:/(안성)/i, region:"경기도"},
-    {re:/(춘천|원주|강릉)/i, region:"강원특별자치도"},
-    {re:/(경산)/i, region:"경상북도"},
-    {re:/(김해|양산)/i, region:"경상남도"},
-    {re:/(밀양)/i, region:"경상남도"},
-    {re:/(여수|순천|목포)/i, region:"전라남도"},
-    {re:/(전주|군산|익산)/i, region:"전라북도"},
-  ];
-  const UNIVERSITY_MAP = [
-    {re:/(서울대|SNU|Seoul Nat)/i, region:"서울특별시"},
-    {re:/(연세대|Yonsei)/i, region:"서울특별시"},
-    {re:/(고려대|Korea Univ)/i, region:"서울특별시"},
-    {re:/(성균관대|Sungkyunkwan)/i, region:"서울특별시"},
-    {re:/(서강대|Sogang)/i, region:"서울특별시"},
-    {re:/(한양대(?!.*ERICA))/i, region:"서울특별시"},
-    {re:/(중앙대(?!.*안성))/i, region:"서울특별시"},
-    {re:/(한국외대|HUFS)/i, region:"서울특별시"},
-    {re:/(동국대|Dongguk)/i, region:"서울특별시"},
-    {re:/(홍익대(?!.*세종))/i, region:"서울특별시"},
-    {re:/(건국대|Konkuk)/i, region:"서울특별시"},
-    {re:/(서울시립대|UOS)/i, region:"서울특별시"},
-    {re:/(이화여대|Ewha)/i, region:"서울특별시"},
-    {re:/(숙명여대|Sookmyung)/i, region:"서울특별시"},
-    // 경기/인천
-    {re:/(한양대.*(ERICA|에리카))/i, region:"경기도"},
-    {re:/(경기대|Kyonggi)/i, region:"경기도"},
-    {re:/(아주대|Ajou)/i, region:"경기도"},
-    {re:/(단국대.*(죽전|용인))/i, region:"경기도"},
-    {re:/(단국대(?!.*천안))/i, region:"경기도"},
-    {re:/(명지대.*용인)/i, region:"경기도"},
-    {re:/(가천대(?!.*인천|글로벌))/i, region:"경기도"},
-    {re:/(경희대.*(국제|수원|Global|Suwon))/i, region:"경기도"},
-    {re:/(중앙대.*안성)/i, region:"경기도"},
-    {re:/(인천대|INU|Incheon National)/i, region:"인천광역시"},
-    {re:/(인하대|Inha)/i, region:"인천광역시"},
-    {re:/(가천대.*(인천|글로벌))/i, region:"인천광역시"},
-    // 강원
-    {re:/(강원대|Kangwon National)/i, region:"강원특별자치도"},
-    {re:/(한림대)/i, region:"강원특별자치도"},
-    // 대전/세종/충청
-    {re:/(KAIST|카이스트)/i, region:"대전광역시"},
-    {re:/(충남대(?!.*세종))/i, region:"대전광역시"},
-    {re:/(한밭대)/i, region:"대전광역시"},
-    {re:/(배재대|Ba[e ]?jae)/i, region:"대전광역시"},
-    {re:/(우송대)/i, region:"대전광역시"},
-    {re:/(고려대.*세종|홍익대.*세종|충남대.*세종)/i, region:"세종특별자치시"},
-    {re:/(단국대.*천안|선문대|순천향대|호서대|백석대)/i, region:"충청남도"},
-    {re:/(충북대|서원대|한국교통대)/i, region:"충청북도"},
-    // 전라
-    {re:/(전북대|군산대|원광대|우석대)/i, region:"전라북도"},
-    {re:/(전남대(?!.*여수)|조선대|호남대|GIST)/i, region:"광주광역시"},
-    {re:/(전남대.*여수|목포대|순천대|동신대)/i, region:"전라남도"},
-    // 경상권
-    {re:/(경북대|계명대)/i, region:"대구광역시"},
-    {re:/(영남대(?!.*대구)|금오공대|대구가톨릭대.*경산)/i, region:"경상북도"},
-    {re:/(부산대(?!.*밀양)|동아대|동의대|부경대)/i, region:"부산광역시"},
-    {re:/(부산대.*밀양|경상국립대|창원대|인제대.*김해)/i, region:"경상남도"},
-    {re:/(울산대)/i, region:"울산광역시"},
-    // 제주
-    {re:/(제주대)/i, region:"제주특별자치도"},
-  ];
-
-  function normalizeTeamName(s){
-    if(!s) return "";
-    let t = String(s).toLowerCase();
-    t = t.replace(/[()\[\]{}]/g," ").replace(/[^\w가-힣\s]/g," ").replace(/\s+/g," ").trim();
-    const junk = ['대학교','대학','대','농구','농구부','농구팀','농구동아리','동아리','클럽','club','basketball','university','univ','uni','campus','team'];
-    junk.forEach(word=>{ t = t.replace(new RegExp(`\\b${word}\\b`,'g')," ").replace(/\s+/g," ").trim(); });
-    return t;
-  }
-  function matchByList(list, raw){ for(const rule of list){ if(rule.re.test(raw)) return rule.region; } return ""; }
-
-  function inferRegionFromTeamLocal(teamName){
-    if(!teamName) return "";
-    // ⬅️ (추가) 오버라이드 최우선
-    let region = matchOverride(teamName);
-    if(region) return region;
-
-    const raw = teamName;
-    const norm = normalizeTeamName(teamName);
-
-    // 1) 팀명에 지역 키워드
-    region = matchByList(REGION_KEYWORDS, raw) || matchByList(REGION_KEYWORDS, norm);
-    if(region) return region;
-
-    // 2) 대학 키워드(한/영/약칭)
-    region = matchByList(UNIVERSITY_MAP, raw) || matchByList(UNIVERSITY_MAP, norm);
-    if(region) return region;
-
-    // 3) 캠퍼스 힌트
-    region = matchByList(CAMPUS_HINTS, raw) || matchByList(CAMPUS_HINTS, norm);
-    if(region) return region;
-
-    return "";
-  }
-
-  /* ====== 2) 웹검색 보강 (위키백과 REST API) ======
-     - ko.wikipedia 검색 → 최상위 제목 → summary에서 키워드 매칭
-     - CORS 허용. rate-limit 고려해 순차 요청.
-  */
-  async function wikiSearchTitle(q){
-    const url = `https://ko.wikipedia.org/w/rest.php/v1/search/title?q=${encodeURIComponent(q)}&limit=1`;
-    const res = await fetch(url);
-    if(!res.ok) throw new Error(`wiki search HTTP ${res.status}`);
-    const data = await res.json();
-    if(data?.pages?.length){ return data.pages[0].title; }
-    return null;
-  }
-  async function wikiSummary(title){
-    const url = `https://ko.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
-    const res = await fetch(url);
-    if(!res.ok) throw new Error(`wiki summary HTTP ${res.status}`);
-    return await res.json();
-  }
-  function extractUniversityToken(team){
-    // 팀명에서 “OO대학교/OO대/영문대학명” 추출 우선시
-    const m1 = team.match(/([가-힣A-Za-z\s]+?)(대학교|대)\b/);
-    if(m1){ return m1[0].replace(/\s*농구.*$/,'').trim(); }
-    // 영문 패턴(University, Univ)
-    const m2 = team.match(/([A-Za-z][A-Za-z\.\-\s]+?(University|Univ))/i);
-    if(m2){ return m2[0].trim(); }
-    // 마지막 시도: 구분자 앞쪽
-    return team.split(/[-–—·\|]/)[0].trim();
-  }
-  function mapTextToRegion(text){
-    if(!text) return "";
-    // 1) 지역명 직접
-    let r = matchByList(REGION_KEYWORDS, text);
-    if(r) return r;
-    // 2) 캠퍼스 힌트
-    r = matchByList(CAMPUS_HINTS, text);
-    if(r) return r;
-    // 3) 대학명 자체
-    r = matchByList(UNIVERSITY_MAP, text);
-    if(r) return r;
-    return "";
-  }
-  async function inferRegionFromWeb(teamName){
-    try{
-      const query = extractUniversityToken(teamName);
-      if(!query) return "";
-      const title = await wikiSearchTitle(query);
-      if(!title) return "";
-      const sum = await wikiSummary(title);
-      const bundle = `${title} ${sum?.description||""} ${sum?.extract||""}`;
-      return mapTextToRegion(bundle);
-    }catch(e){
-      return "";
-    }
+  function applyFilter(){
+    const q=(search.value||'').toLowerCase(), reg=region.value;
+    FILTERED=BASE.filter(it=>{
+      const hay=(it.team+' '+it.city).toLowerCase();
+      return (!q||hay.includes(q))&&(!reg||it.city===reg);
+    });
+    buildLocalRankMap();
+    render();
   }
 
   function render(){
@@ -391,15 +213,10 @@
 
       const regionSet=new Set();
       BASE=rows.map((r,i)=>{
-        const teamName = MAP.team ? r[MAP.team] : '';
-        const rawCity  = MAP.city ? (r[MAP.city]||'') : '';
-        // 엑셀 값 우선, 비면: 오버라이드 → 로컬 규칙
-        const overrideCity = matchOverride(String(teamName||""));
-        const localCity = rawCity ? String(rawCity) : (overrideCity || inferRegionFromTeamLocal(String(teamName||"")));
         const obj={
           rank:MAP.rank?Number(r[MAP.rank])||(i+1):(i+1),
-          team:teamName || '',
-          city:localCity || '',
+          team:MAP.team?r[MAP.team]:'',
+          city:MAP.city?(r[MAP.city]||''):'',
           score:MAP.score?r[MAP.score]:'',
           move:MAP.move?(r[MAP.move]===''?0:r[MAP.move]):0,
           scoreChange:MAP.scoreChange?(r[MAP.scoreChange] ?? 0):null,
@@ -417,43 +234,11 @@
       buildLocalRankMap();
       search.addEventListener('input',applyFilter);
       region.addEventListener('change',applyFilter);
-      enrichBtn.addEventListener('click', runWebEnrich);
       render();
     }catch(err){
       statusEl.classList.add('hidden'); errorEl.classList.remove('hidden');
       errorEl.textContent=`데이터 로드 오류: ${err.message}. 파일 경로/이름 또는 CORS 설정을 확인하세요.`;
     }
-  }
-
-  /* 3) 버튼: 웹검색으로 지역 보강 */
-  async function runWebEnrich(){
-    enrichBtn.disabled = true;
-    enrichBtn.textContent = '보강 중…';
-    let updated = 0;
-
-    // 비어있는 항목만 순차 처리(위키 rate-limit 고려)
-    for(const it of BASE){
-      if(!it.city && it.team){
-        const webCity = await inferRegionFromWeb(it.team);
-        if(webCity){
-          it.city = webCity;
-          updated++;
-          // 콤보 박스 옵션 즉시 반영
-          if([...region.options].every(o=>o.value!==webCity)){
-            const opt = document.createElement('option');
-            opt.value = webCity; opt.textContent = webCity;
-            region.appendChild(opt);
-          }
-          render(); // 화면 갱신(프로그레스 느낌)
-          await new Promise(r=>setTimeout(r, 200)); // 살짝 텀
-        }
-      }
-    }
-
-    buildLocalRankMap();
-    applyFilter(); // 현재 필터 재적용
-    enrichBtn.disabled = false;
-    enrichBtn.textContent = updated ? `보강 완료 (${updated}건)` : '보강할 항목 없음';
   }
 
   loadLocal();
