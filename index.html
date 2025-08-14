@@ -6,89 +6,152 @@
 <title>BDR 랭킹 - 대학부</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <meta name="color-scheme" content="dark" />
 <style>
-  .surface{background:#0e141c}.card{background:#131a24}.muted{color:#94a3b8}.accent{color:#ffd54a}
-  .shadow-smooth{box-shadow:0 10px 30px rgba(0,0,0,.35)}.num{font-variant-numeric:tabular-nums}
+  :root{--surface:#0e141c;--card:#131a24;--muted:#94a3b8;--accent:#ffd54a}
+  html,body{background:var(--surface)}
+  .surface{background:var(--surface)} .card{background:var(--card)} .muted{color:var(--muted)} .accent{color:var(--accent)}
+  .shadow-smooth{box-shadow:0 10px 30px rgba(0,0,0,.35)} .num{font-variant-numeric:tabular-nums}
+  body{font-size:17px; line-height:1.55; -webkit-font-smoothing:antialiased; text-rendering:geometricPrecision}
+  .card{border:1px solid #1f2a3a}
+  .city-line{font-size:1.125rem}
+  .title{letter-spacing:.2px}
 
-  /* Movement badge */
-  .badge{display:inline-flex;align-items:center;gap:.4rem;border-radius:9999px;padding:.35rem .75rem;line-height:1;font-weight:800;font-size:.95rem}
-  .badge-up{background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.45)}
-  .badge-down{background:rgba(59,130,246,.15);color:#93c5fd;border:1px solid rgba(59,130,246,.45)}
-  .badge-stay{background:rgba(148,163,184,.12);color:#cbd5e1;border:1px solid rgba(148,163,184,.30)}
-  .icon{width:1.05em;height:1.05em}
+  /* ── 랭킹변화 배지(웹) – 중앙정렬 ─────────────────────── */
+  .badge{border-radius:9999px;border:1px solid rgba(148,163,184,.34);line-height:1;font-weight:800;font-size:1rem}
+  .badge-grid{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:28px;padding:4px 12px}
+  .badge-pill{display:inline-flex;align-items:center;justify-content:center;height:28px;padding:4px 12px}
+  .badge-up{background:rgba(239,68,68,.18);color:#fca5a5;border-color:rgba(239,68,68,.55)}
+  .badge-down{background:rgba(59,130,246,.18);color:#93c5fd;border-color:rgba(59,130,246,.55)}
+  .badge-stay{background:rgba(148,163,184,.14);color:#cbd5e1;border-color:rgba(148,163,184,.34)}
 
-  /* Score change styles */
-  .score-up { color: #f87171; font-weight: 600; }
-  .score-down { color: #60a5fa; font-weight: 600; }
-  .score-same { color: #94a3b8; font-weight: 500; }
+  /* 아이콘(+/−/—) */
+  .ico{width:16px;height:16px;position:relative;display:inline-block;vertical-align:middle}
+  .ico::before,.ico::after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:currentColor;border-radius:2px}
+  .ico.plus::before,.ico.minus::before,.ico.dash::before{width:14px;height:2px}
+  .ico.plus::after{width:2px;height:14px}
+  .ico.minus::after{display:none}
+  .ico.dash::after{display:none}
+  .badge-grid .n{display:flex;align-items:center;height:18px;line-height:1}
 
-  /* Top-3 decoration */
-  .top1{border:1.5px solid rgba(255,215,0,.55);background:linear-gradient(180deg,rgba(255,215,0,.10),transparent 50%),#131a24}
-  .top2{border:1.5px solid rgba(192,192,192,.55);background:linear-gradient(180deg,rgba(192,192,192,0.10),transparent 50%),#131a24}
-  .top3{border:1.5px solid rgba(205,127,50,.55);background:linear-gradient(180deg,rgba(205,127,50,0.10),transparent 50%),#131a24}
+  /* 점수 변화 색 */
+  .score-up{color:#f87171;font-weight:700}
+  .score-down{color:#60a5fa;font-weight:700}
+  .score-same{color:#94a3b8;font-weight:600}
+
+  /* Top-3 */
+  .top1{border:1.5px solid rgba(255,215,0,.55);background:linear-gradient(180deg,rgba(255,215,0,.10),transparent 50%),var(--card)}
+  .top2{border:1.5px solid rgba(192,192,192,.55);background:linear-gradient(180deg,rgba(192,192,192,.10),transparent 50%),var(--card)}
+  .top3{border:1.5px solid rgba(205,127,50,.55);background:linear-gradient(180deg,rgba(205,127,50,.10),transparent 50%),var(--card)}
   .medal{font-weight:900;letter-spacing:.02em}.medal-g{color:#ffd700}.medal-s{color:#c0c0c0}.medal-b{color:#cd7f32}
 
-  /* Movement animations */
+  /* 애니메이션 */
   @keyframes popUp{0%{transform:translateY(4px) scale(.98);opacity:0}60%{transform:translateY(-2px) scale(1.02);opacity:1}100%{transform:translateY(0) scale(1)}}
   @keyframes popDown{0%{transform:translateY(-4px) scale(.98);opacity:0}60%{transform:translateY(2px) scale(1.02);opacity:1}100%{transform:translateY(0) scale(1)}}
-  .animate-up{animation:popUp .45s cubic-bezier(.2,.8,.2,1)}.animate-down{animation:popDown .45s cubic-bezier(.2,.8,.2,1)}
+  .animate-up{animation:popUp .45s cubic-bezier(.2,.8,.2,1)} .animate-down{animation:popDown .45s cubic-bezier(.2,.8,.2,1)}
 
-  /* Region rank chip */
-  .chip{font-size:.75rem;padding:.35rem .6rem;border-radius:9999px;background:#0c1220;border:1px solid #1f2a3a}
-  .chip-region{background:rgba(99,102,241,.12);border-color:rgba(99,102,241,.35);color:#c7d2fe}
+  .chip{font-size:.85rem;padding:.4rem .7rem;border-radius:9999px;background:#0c1220;border:1px solid #1f2a3a}
+  .chip-region{background:rgba(99,102,241,.14);border-color:rgba(99,102,241,.45);color:#c7d2fe}
 
-  /* City line */
-  .city-line{font-size:1rem}
+  /* ── 4:5 캡처 전용(다운로드) ─────────────────────── */
+  .ex-root{width:1080px;height:1350px;background:#0e141c;color:#fff;padding:24px;box-sizing:border-box;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,Pretendard,sans-serif;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}
+  .ex-header{display:flex;flex-direction:column;align-items:center;margin-bottom:16px}
+  .ex-row{display:flex;align-items:flex-end;justify-content:space-between;width:100%}
+  .ex-title{font-size:40px;font-weight:800;letter-spacing:.2px}
+  .ex-date{font-size:20px;color:#94a3b8;font-weight:700}
+  .ex-fit{width:100%;overflow:hidden;display:flex;justify-content:center}
+  .ex-content{width:100%;transform-origin:top center}
+  .ex-list{display:flex;flex-direction:column;gap:8px}
 
-  /* Simple spinner keyframes (optional) */
+  .ex-card{background:#131a24;border:1px solid #1f2a3a;border-radius:16px;padding:14px 18px}
+  .ex-grid{display:grid;grid-template-columns:80px 200px 1fr 220px;align-items:center;column-gap:16px}
+  .ex-rank{display:flex;flex-direction:column;align-items:flex-start}
+  .ex-rank-num{font-size:44px;font-weight:900}
+  .ex-medal{font-size:11px;margin-top:3px}
+
+  .ex-badges{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+  .ex-badge{border-radius:9999px;border:1px solid rgba(148,163,184,.34);font-size:18px;font-weight:800;line-height:1}
+  .ex-badge.up{background:rgba(239,68,68,.18);color:#fca5a5;border-color:rgba(239,68,68,.55)}
+  .ex-badge.down{background:rgba(59,130,246,.18);color:#93c5fd;border-color:rgba(59,130,246,.55)}
+  .ex-badge.stay{background:rgba(148,163,184,.14);color:#cbd5e1;border-color:rgba(148,163,184,.34)}
+  .ex-gridbadge{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:28px;padding:4px 12px}
+  .ex-pill{display:inline-flex;align-items:center;justify-content:center;height:28px;padding:4px 12px}
+  .ex-ico{width:16px;height:16px;position:relative;display:inline-block;vertical-align:middle}
+  .ex-ico::before,.ex-ico::after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:currentColor;border-radius:2px}
+  .ex-ico.plus::before,.ex-ico.minus::before,.ex-ico.dash::before{width:14px;height:2px}
+  .ex-ico.plus::after{width:2px;height:14px}
+  .ex-num{display:flex;align-items:center;height:18px;line-height:1}
+
+  .ex-team{display:flex;flex-direction:column}
+  .ex-team-name{font-size:34px;font-weight:800}
+  .ex-city{font-size:20px;color:#94a3b8;margin-top:4px}
+  .ex-score{display:flex;flex-direction:column;align-items:flex-end}
+  .ex-score-val{font-size:44px;font-weight:900;color:#ffd54a}
+  .ex-score-diff{display:flex;align-items:baseline;gap:6px;margin-top:6px;font-size:20px}
+  .ex-up{color:#f87171;font-weight:800}
+  .ex-down{color:#60a5fa;font-weight:800}
+  .ex-same{color:#94a3b8;font-weight:700}
+
+  /* spinner */
   @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body class="min-h-screen surface text-white antialiased">
 <div class="max-w-6xl mx-auto px-4 py-6">
+
   <!-- 헤더 -->
-  <div class="flex flex-col items-center mb-6 w-full">
-    <img src="BDR(배경없음).png" alt="BDR Logo" class="h-20 object-contain mb-2">
+  <div class="flex flex-col items-center w-full">
+    <img src="BDR(배경없음).png" alt="BDR Logo" class="h-20 object-contain mb-2" crossOrigin="anonymous">
     <div class="flex items-end justify-between w-full">
-      <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">BDR 랭킹 - 대학부</h1>
-      <span id="lastUpdated" class="text-base font-medium muted"></span>
+      <h1 class="title text-3xl sm:text-4xl font-bold">BDR 랭킹 - 대학부</h1>
+      <span id="lastUpdated" class="text-lg font-semibold muted"></span>
     </div>
   </div>
 
-  <!-- 필터 -->
-  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-    <input id="search" type="search" placeholder="팀명/지역 검색…" class="col-span-2 rounded-xl bg-[#0b111a] border border-[#1f2a3a] px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" />
-    <select id="region" class="rounded-xl bg-[#0b111a] border border-[#1f2a3a] px-4 py-3">
+  <!-- 컨트롤 -->
+  <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 mt-4">
+    <input id="search" type="search" placeholder="팀명/지역 검색…" class="sm:col-span-2 rounded-xl bg-[#0b111a] border border-[#1f2a3a] px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500" />
+    <select id="region" class="sm:col-span-1 rounded-xl bg-[#0b111a] border border-[#1f2a3a] px-4 py-3">
       <option value="">전체 지역</option>
     </select>
+    <select id="exportRange" class="sm:col-span-1 rounded-xl bg-[#0b111a] border border-[#1f2a3a] px-4 py-3">
+      <option value="1-10">1–10위</option>
+    </select>
+    <button id="btnExport" class="sm:col-span-1 rounded-xl bg-[#0b111a] border border-[#1f2a3a] px-4 py-3 hover:bg-[#131a24]">
+      4:5 이미지 다운로드
+    </button>
   </div>
-  <p class="mt-2 text-sm text-indigo-200/80 text-right">※ 지역필터를 적용하면 지역별 랭킹을 보실 수 있습니다.</p>
 
-  <div id="status" class="flex items-center gap-3 text-sm muted mt-4 mb-3">
-    <div class="spinner" aria-hidden="true" style="width:24px;height:24px;border-radius:9999px;border:3px solid #1f2a3a;border-top-color:#60a5fa;animation:spin .9s linear infinite"></div>
-    <span>데이터 불러오는 중…</span>
-  </div>
-  <div id="error" class="hidden text-sm text-red-400 mb-3"></div>
+  <p class="text-sm text-indigo-200/80 text-right -mt-1">
+    ※ 지역필터를 적용하면 지역별 랭킹을 보실 수 있습니다.
+  </p>
 
   <!-- 리스트 -->
-  <div id="list" class="space-y-2"></div>
-
-  <div class="mt-6 flex items-center justify-end">
+  <div id="list" class="space-y-3"></div>
+  <div class="flex items-center justify-end">
     <div class="muted text-sm">총 <span id="rowCount"></span>개 팀</div>
   </div>
+
+  <!-- 상태/오류 -->
+  <div id="status" class="flex items-center gap-3 text-sm muted mt-3">
+    <div style="width:22px;height:22px;border-radius:9999px;border:3px solid #1f2a3a;border-top-color:#60a5fa;animation:spin .9s linear infinite"></div>
+    <span>데이터 불러오는 중…</span>
+  </div>
+  <div id="error" class="hidden text-sm text-red-400 mt-2"></div>
 </div>
 
 <script>
-  /* ===== 엑셀 파일 경로 (GitHub Raw) ===== */
+  /* 대학부 엑셀 (GitHub Raw) */
   const LOCAL_XLSX_URL = "https://raw.githubusercontent.com/cobby8/BDR-ranking-u/main/%EB%8C%80%ED%95%99%EB%B6%80%EB%9E%AD%ED%82%B9_20250808.xlsx";
 
   let BASE=[], FILTERED=[], LOCAL_RANK_MAP=null;
   const list=document.getElementById('list'), search=document.getElementById('search'), region=document.getElementById('region');
   const rowCount=document.getElementById('rowCount'), statusEl=document.getElementById('status'), errorEl=document.getElementById('error');
+  const lastUpdated=document.getElementById('lastUpdated'); const exportRangeEl=document.getElementById('exportRange');
 
   function formatDate(d){const z=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}년 ${z(d.getMonth()+1)}월 ${z(d.getDate())}일`;}
-  document.getElementById('lastUpdated').textContent=formatDate(new Date());
+  lastUpdated.textContent=formatDate(new Date());
 
   /* 엑셀 헤더 자동 매핑 후보 */
   const MAP_CANDIDATES={
@@ -99,149 +162,102 @@
     move:["랭킹 변화","증감","변동","delta","updown","전주대비","전월대비"],
     scoreChange:["점수 변화","점수 증감","score change","score diff","score_delta"]
   };
+  const pick=(keys,cands)=>{for(const c of cands){const f=keys.find(k=>(k||"").toLowerCase().includes(c.toLowerCase())); if(f) return f} return null}
+  const byRankClass=r=>r===1?'top1':r===2?'top2':r===3?'top3':''; 
+  const medal=r=>r===1?'<span class="medal-g">GOLD</span>':r===2?'<span class="medal-s">SILVER</span>':r===3?'<span class="medal-b">BRONZE</span>':'';
 
-  function pickColumn(keys,cands){
-    for(const c of cands){
-      const f=keys.find(k=>(k||"").toLowerCase().includes(c.toLowerCase()));
-      if(f) return f;
-    }
-    return null;
-  }
-  function byRankClass(r){return r===1?'top1':r===2?'top2':r===3?'top3':''}
-  function medalSpan(r){return r===1?'<span class="medal medal-g">GOLD</span>':r===2?'<span class="medal medal-s">SILVER</span>':r===3?'<span class="medal medal-b">BRONZE</span>':''}
+  /* 랭킹변화 배지(웹) */
   function movementBadge(m){
     const n=Number(m);
-    if(Number.isNaN(n)) return `<span class="badge badge-stay">— 0</span>`;
-    if(n>0) return `<span class="badge badge-up animate-up">+${n}</span>`;
-    if(n<0) return `<span class="badge badge-down animate-down">-${Math.abs(n)}</span>`;
-    return `<span class="badge badge-stay">— 0</span>`;
+    if(Number.isNaN(n) || n===0){
+      return `<span class="badge badge-stay badge-pill" aria-label="변동 없음"><i class="ico dash"></i></span>`;
+    }
+    if(n>0){
+      return `<span class="badge badge-up badge-grid animate-up"><i class="ico plus"></i><span class="n num">${n}</span></span>`;
+    }
+    return `<span class="badge badge-down badge-grid animate-down"><i class="ico minus"></i><span class="n num">${Math.abs(n)}</span></span>`;
   }
 
-  /* 점수변화 소수점 1자리 표시 */
+  /* 점수 변화: 소수점 1자리 */
   function scoreChangeBadge(val){
-    if(val===null || val===undefined || val==="") return `<span class="score-same">-</span>`;
-    const num = Number(val);
-    if(Number.isNaN(num)) return `<span class="score-same">-</span>`;
+    if(val===null || val===undefined || val==="" || Number(val)===0) return `<span class="score-same">-</span>`;
+    const num=Number(val); if(Number.isNaN(num)) return `<span class="score-same">-</span>`;
     const fixed = Math.abs(num).toFixed(1);
     if(num>0) return `<span class="score-up">+${fixed}</span>`;
     if(num<0) return `<span class="score-down">-${fixed}</span>`;
-    return `<span class="score-same">0.0</span>`;
+    return `<span class="score-same">-</span>`;
   }
 
-  /* 지역 필터 선택 시, 해당 지역 내 상대 순위 배지용 맵 생성 */
+  /* 지역선택 시 지역내 상대 순위 배지 맵 */
   function buildLocalRankMap(){
-    const reg=region.value;
-    if(!reg){ LOCAL_RANK_MAP=null; return; }
+    const reg=region.value; if(!reg){LOCAL_RANK_MAP=null; return;}
     const subset = FILTERED.slice().sort((a,b)=> (a.rank??Infinity)-(b.rank??Infinity));
-    const map = new Map();
-    subset.forEach((item, idx) => {
-      const key = item.team + "||" + (item.city || "");
-      map.set(key, idx+1);
-    });
-    LOCAL_RANK_MAP = map;
+    const map = new Map(); subset.forEach((it,idx)=>map.set(it.team+"||"+(it.city||""), idx+1)); LOCAL_RANK_MAP = map;
   }
-  function regionalBadge(team, city){
-    if(!LOCAL_RANK_MAP) return '';
-    const key = team + "||" + (city || "");
-    const n = LOCAL_RANK_MAP.get(key);
-    if(!n) return '';
-    return `<span class="chip chip-region">지역 랭킹 ${n}위</span>`;
-  }
+  const regionalBadge=(team,city)=> LOCAL_RANK_MAP?`<span class="chip chip-region">지역 랭킹 ${LOCAL_RANK_MAP.get(team+"||"+(city||""))||''}위</span>`:'';
 
-  function applyFilter(){
-    const q=(search.value||'').toLowerCase(), reg=region.value;
-    FILTERED=BASE.filter(it=>{
-      const hay=(it.team+' '+it.city).toLowerCase();
-      return (!q||hay.includes(q))&&(!reg||it.city===reg);
-    });
-    buildLocalRankMap();
-    render();
-  }
-
-  function render(){
-    rowCount.textContent = FILTERED.length;
-    list.innerHTML = FILTERED.map(it => {
-      const scoreVal = Number(it.score);
-      const scoreText = isNaN(scoreVal) ? (it.score??'') : scoreVal.toFixed(1);
-      return `
-      <div class="card shadow-smooth rounded-2xl border border-[#1f2a3a] px-4 sm:px-6 py-4 ${byRankClass(it.rank)}">
-        <div class="grid grid-cols-12 items-center gap-3">
-          <div class="col-span-2 sm:col-span-1 flex flex-col items-start">
-            <div class="text-2xl sm:text-3xl font-extrabold num">${it.rank}</div>
-            <div class="text-[10px] mt-1">${medalSpan(it.rank)}</div>
-          </div>
-          <div class="col-span-3 sm:col-span-3 flex flex-col items-start gap-1">
-            ${movementBadge(it.move)}
-            ${regionalBadge(it.team, it.city)}
-          </div>
-          <div class="col-span-4 sm:col-span-5">
-            <div class="text-lg sm:text-xl font-semibold">${it.team}</div>
-            <div class="city-line muted mt-0.5">${it.city || ''}</div>
-          </div>
-          <div class="col-span-3 sm:col-span-3 text-right">
-            <div class="text-2xl sm:text-3xl font-extrabold accent num">${scoreText}</div>
-            <div class="mt-1 flex justify-end items-baseline gap-1">
-              <span class="text-lg">${scoreChangeBadge(it.scoreChange)}</span>
-              <span class="text-lg muted">점</span>
-            </div>
+  /* 화면 카드 */
+  function cardHTML(it){
+    const scoreVal = Number(it.score);
+    const scoreText = isNaN(scoreVal) ? (it.score??'') : scoreVal.toFixed(1);
+    return `
+    <div class="card shadow-smooth rounded-2xl px-5 sm:px-7 py-5 ${byRankClass(it.rank)}">
+      <div class="grid grid-cols-12 items-center gap-4">
+        <div class="col-span-2 sm:col-span-1 flex flex-col items-start">
+          <div class="text-3xl sm:text-4xl font-extrabold num">${it.rank}</div>
+          <div class="text-[11px] mt-1">${medal(it.rank)}</div>
+        </div>
+        <div class="col-span-3 sm:col-span-3 flex flex-col items-start gap-1.5">
+          ${movementBadge(it.move)}
+          ${regionalBadge(it.team, it.city)}
+        </div>
+        <div class="col-span-4 sm:col-span-5">
+          <div class="text-2xl font-semibold">${it.team}</div>
+          <div class="city-line muted mt-0.5">${it.city || ''}</div>
+        </div>
+        <div class="col-span-3 sm:col-span-3 text-right">
+          <div class="text-3xl sm:text-4xl font-extrabold accent num">${scoreText}</div>
+          <div class="mt-1.5 flex justify-end items-baseline gap-1.5">
+            <span class="text-xl">${scoreChangeBadge(it.scoreChange)}</span>
+            <span class="text-xl muted">점</span>
           </div>
         </div>
-      </div>`;
-    }).join('');
+      </div>
+    </div>`;
   }
 
-  async function loadLocal(){
-    statusEl.classList.remove('hidden'); errorEl.classList.add('hidden'); errorEl.textContent='';
-    try{
-      const res=await fetch(LOCAL_XLSX_URL,{cache:'no-store'});
-      if(!res.ok) throw new Error(`HTTP ${res.status}`);
-      const ab=await res.arrayBuffer();
-      const wb=XLSX.read(new Uint8Array(ab),{type:'array'});
-      const ws=wb.Sheets[wb.SheetNames[0]];
-      const rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:true});
-      if(!rows.length) throw new Error('시트가 비어있습니다.');
-
-      const headerKeys=Object.keys(rows[0]);
-      const MAP={
-        rank:pickColumn(headerKeys,MAP_CANDIDATES.rank),
-        team:pickColumn(headerKeys,MAP_CANDIDATES.team),
-        city:pickColumn(headerKeys,MAP_CANDIDATES.city),
-        score:pickColumn(headerKeys,MAP_CANDIDATES.score),
-        move:pickColumn(headerKeys,MAP_CANDIDATES.move),
-        scoreChange:pickColumn(headerKeys,MAP_CANDIDATES.scoreChange)
-      };
-
-      const regionSet=new Set();
-      BASE=rows.map((r,i)=>{
-        const obj={
-          rank:MAP.rank?Number(r[MAP.rank])||(i+1):(i+1),
-          team:MAP.team?r[MAP.team]:'',
-          city:MAP.city?(r[MAP.city]||''):'',
-          score:MAP.score?r[MAP.score]:'',
-          move:MAP.move?(r[MAP.move]===''?0:r[MAP.move]):0,
-          scoreChange:MAP.scoreChange?(r[MAP.scoreChange] ?? 0):null,
-          raw:r
-        };
-        if(obj.city) regionSet.add(obj.city);
-        return obj;
-      });
-
-      region.innerHTML='<option value="">전체 지역</option>'+
-        Array.from(regionSet).sort().map(v=>`<option value="${v}">${v}</option>`).join('');
-
-      statusEl.classList.add('hidden');
-      FILTERED=[...BASE];
-      buildLocalRankMap();
-      search.addEventListener('input',applyFilter);
-      region.addEventListener('change',applyFilter);
-      render();
-    }catch(err){
-      statusEl.classList.add('hidden'); errorEl.classList.remove('hidden');
-      errorEl.textContent=`데이터 로드 오류: ${err.message}. 파일 경로/이름 또는 CORS 설정을 확인하세요.`;
+  /* ── 4:5 이미지 카드 ── */
+  function exportCardHTML(it){
+    const n=Number(it.move);
+    const scoreText = isNaN(Number(it.score)) ? (it.score??'') : Number(it.score).toFixed(1);
+    const diff = it.scoreChange;
+    let diffHTML;
+    if((diff===null || diff===undefined || diff==="") || Number(diff)===0){
+      diffHTML = `<span class="ex-same">-</span>`;
+    }else{
+      const num = Number(diff);
+      if(Number.isNaN(num)){ diffHTML = `<span class="ex-same">-</span>`; }
+      else if(num>0){ diffHTML = `<span class="ex-up">+${Math.abs(num).toFixed(1)}</span>`; }
+      else { diffHTML = `<span class="ex-down">-${Math.abs(num).toFixed(1)}</span>`; }
     }
-  }
+    const localRank = LOCAL_RANK_MAP ? (LOCAL_RANK_MAP.get(it.team+"||"+(it.city||""))||'') : '';
 
-  loadLocal();
-</script>
-</body>
-</html>
+    let moveHTML='';
+    if(Number.isNaN(n) || n===0){
+      moveHTML = `<span class="ex-badge stay ex-pill" aria-label="변동 없음"><i class="ex-ico dash"></i></span>`;
+    }else if(n>0){
+      moveHTML = `<span class="ex-badge up ex-gridbadge"><i class="ex-ico plus"></i><span class="ex-num num">${n}</span></span>`;
+    }else{
+      moveHTML = `<span class="ex-badge down ex-gridbadge"><i class="ex-ico minus"></i><span class="ex-num num">${Math.abs(n)}</span></span>`;
+    }
+
+    return `
+    <div class="ex-card ${byRankClass(it.rank)}">
+      <div class="ex-grid">
+        <div class="ex-rank">
+          <div class="ex-rank-num num">${it.rank}</div>
+          <div class="ex-medal">${medal(it.rank)}</div>
+        </div>
+        <div class="ex-badges">
+          ${moveHTML}
+          ${LOCAL_RANK_MAP ? `<span class="ex-badge ex-pill" style="background:rgba(99,102,241,.14);border-color:rgba(99,102,241,.45);color:#c
