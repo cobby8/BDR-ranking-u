@@ -17,8 +17,6 @@
   .card{border:1px solid #1f2a3a}
   .city-line{font-size:1.125rem}
   .title{letter-spacing:.2px}
-
-  /* 랭킹변화 배지(웹) */
   .badge{border-radius:9999px;border:1px solid rgba(148,163,184,.34);line-height:1;font-weight:800;font-size:1rem}
   .badge-grid{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:28px;padding:4px 12px}
   .badge-pill{display:inline-flex;align-items:center;justify-content:center;height:28px;padding:4px 12px}
@@ -31,27 +29,18 @@
   .ico.plus::after{width:2px;height:14px}
   .ico.minus::after,.ico.dash::after{display:none}
   .badge-grid .n{display:flex;align-items:center;height:18px;line-height:1}
-
-  /* 점수 변화 색 */
   .score-up{color:#f87171;font-weight:700}
   .score-down{color:#60a5fa;font-weight:700}
   .score-same{color:#94a3b8;font-weight:600}
-
-  /* Top-3 */
   .top1{border:1.5px solid rgba(255,215,0,.55);background:linear-gradient(180deg,rgba(255,215,0,.10),transparent 50%),var(--card)}
   .top2{border:1.5px solid rgba(192,192,192,.55);background:linear-gradient(180deg,rgba(192,192,192,.10),transparent 50%),var(--card)}
   .top3{border:1.5px solid rgba(205,127,50,.55);background:linear-gradient(180deg,rgba(205,127,50,.10),transparent 50%),var(--card)}
   .medal{font-weight:900;letter-spacing:.02em}.medal-g{color:#ffd700}.medal-s{color:#c0c0c0}.medal-b{color:#cd7f32}
-
-  /* 애니메이션 */
   @keyframes popUp{0%{transform:translateY(4px) scale(.98);opacity:0}60%{transform:translateY(-2px) scale(1.02);opacity:1}100%{transform:translateY(0) scale(1)}}
   @keyframes popDown{0%{transform:translateY(-4px) scale(.98);opacity:0}60%{transform:translateY(2px) scale(1.02);opacity:1}100%{transform:translateY(0) scale(1)}}
   .animate-up{animation:popUp .45s cubic-bezier(.2,.8,.2,1)} .animate-down{animation:popDown .45s cubic-bezier(.2,.8,.2,1)}
-
   .chip{font-size:.85rem;padding:.4rem .7rem;border-radius:9999px;background:#0c1220;border:1px solid #1f2a3a}
   .chip-region{background:rgba(99,102,241,.14);border-color:rgba(99,102,241,.45);color:#c7d2fe}
-
-  /* 4:5 캡처 전용 */
   .ex-root{width:1080px;height:1350px;background:#0e141c;color:#fff;padding:24px;box-sizing:border-box;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Apple SD Gothic Neo,Pretendard,sans-serif;-webkit-font-smoothing:antialiased}
   .ex-header{display:flex;flex-direction:column;align-items:center;margin-bottom:16px}
   .ex-row{display:flex;align-items:flex-end;justify-content:space-between;width:100%}
@@ -134,14 +123,23 @@
 </div>
 
 <script>
-  /* 1) 엑셀 여러 미러 URL: 순서대로 시도 */
+  /* ✅ 1) 가장 안정적인 순서: 같은 사이트의 상대경로 → 원격 미러들 */
   const XLSX_URLS = [
-    // GitHub Raw
+    // (추천) Netlify에 함께 올린 복사본 — 먼저 시도
+    "./data/univ.xlsx",                         // ← 파일명/경로만 맞추면 끝!
+    "./대학부랭킹_20250808.xlsx",               // 루트에 둘 경우
+
+    // GitHub Raw (인코딩/비인코딩 모두 시도)
     "https://raw.githubusercontent.com/cobby8/BDR-ranking-u/main/%EB%8C%80%ED%95%99%EB%B6%80%EB%9E%AD%ED%82%B9_20250808.xlsx",
-    // jsDelivr CDN
-    "https://cdn.jsdelivr.net/gh/cobby8/BDR-ranking-u/%EB%8C%80%ED%95%99%EB%B6%80%EB%9E%AD%ED%82%B9_20250808.xlsx",
-    // raw.githack CDN
-    "https://raw.githack.com/cobby8/BDR-ranking-u/main/%EB%8C%80%ED%95%99%EB%B6%80%EB%9E%AD%ED%82%B9_20250808.xlsx"
+    "https://raw.githubusercontent.com/cobby8/BDR-ranking-u/main/대학부랭킹_20250808.xlsx",
+
+    // jsDelivr (브랜치 명시 @main 필수)
+    "https://cdn.jsdelivr.net/gh/cobby8/BDR-ranking-u@main/%EB%8C%80%ED%95%99%EB%B6%80%EB%9E%AD%ED%82%B9_20250808.xlsx",
+    "https://cdn.jsdelivr.net/gh/cobby8/BDR-ranking-u@main/대학부랭킹_20250808.xlsx",
+
+    // raw.githack (보조)
+    "https://raw.githack.com/cobby8/BDR-ranking-u/main/%EB%8C%80%ED%95%99%EB%B6%80%EB%9E%AD%ED%82%B9_20250808.xlsx",
+    "https://raw.githack.com/cobby8/BDR-ranking-u/main/대학부랭킹_20250808.xlsx"
   ];
 
   let BASE=[], FILTERED=[], LOCAL_RANK_MAP=null;
@@ -153,8 +151,7 @@
   lastUpdated.textContent=formatDate(new Date());
 
   const MAP_CANDIDATES={
-    rank:["랭킹","순위","rank"],
-    team:["팀","팀명","name","team","클럽"],
+    rank:["랭킹","순위","rank"], team:["팀","팀명","name","team","클럽"],
     city:["지역","연고","도시","city","location"],
     score:["점수","score","포인트","point"],
     move:["랭킹 변화","증감","변동","delta","updown","전주대비","전월대비"],
@@ -164,7 +161,6 @@
   const byRankClass=r=>r===1?'top1':r===2?'top2':r===3?'top3':''; 
   const medal=r=>r===1?'<span class="medal-g">GOLD</span>':r===2?'<span class="medal-s">SILVER</span>':r===3?'<span class="medal-b">BRONZE</span>':'';
 
-  /* 랭킹변화 배지(웹) */
   function movementBadge(m){
     const n=Number(m);
     if(Number.isNaN(n) || n===0){
@@ -186,7 +182,6 @@
     return `<span class="score-same">-</span>`;
   }
 
-  /* 지역선택 시 지역내 상대 순위 배지 맵 */
   function buildLocalRankMap(){
     const reg=region.value; if(!reg){LOCAL_RANK_MAP=null; return;}
     const subset = FILTERED.slice().sort((a,b)=> (a.rank??Infinity)-(b.rank??Infinity));
@@ -194,7 +189,6 @@
   }
   const regionalBadge=(team,city)=> LOCAL_RANK_MAP?`<span class="chip chip-region">지역 랭킹 ${LOCAL_RANK_MAP.get(team+"||"+(city||""))||''}위</span>`:'';
 
-  /* 화면 카드 */
   function cardHTML(it){
     const scoreVal = Number(it.score);
     const scoreText = isNaN(scoreVal) ? (it.score??'') : scoreVal.toFixed(1);
@@ -224,7 +218,6 @@
     </div>`;
   }
 
-  /* 4:5 이미지 카드 */
   function exportCardHTML(it){
     const n=Number(it.move);
     const scoreText = isNaN(Number(it.score)) ? (it.score??'') : Number(it.score).toFixed(1);
@@ -272,7 +265,6 @@
     </div>`;
   }
 
-  /* 필터 & 렌더 */
   function applyFilter(){
     const q=(search.value||'').toLowerCase(), reg=region.value;
     FILTERED=BASE.filter(it=>{
@@ -292,34 +284,33 @@
     }).join('');
   }
 
-  /* ===== 안전한 fetch 유틸(타임아웃+미러 시도) ===== */
+  /* 타임아웃 + 미러 순차 시도 */
   async function fetchArrayBufferWithTimeout(url, timeoutMs=12000){
     const ctl = new AbortController();
     const tid = setTimeout(()=>ctl.abort(), timeoutMs);
     try{
       const res = await fetch(url, {cache:'no-store', signal: ctl.signal});
       if(!res.ok) throw new Error(`HTTP ${res.status}`);
-      const ab = await res.arrayBuffer();
-      return ab;
-    } finally {
-      clearTimeout(tid);
-    }
+      return await res.arrayBuffer();
+    } finally { clearTimeout(tid); }
   }
   async function loadFromMirrors(urls){
     const tried = [];
     for(const raw of urls){
-      const url = encodeURI(raw); // 한글/공백 안전 처리
-      try{
-        const ab = await fetchArrayBufferWithTimeout(url);
-        return {ab, url};
-      }catch(e){
-        tried.push(`${raw} → ${e.message||e}`);
+      // 미리 인코딩된 URL과 한글 원본 URL을 그대로 모두 시도
+      const candidates = [raw];
+      for(const url of candidates){
+        try{
+          const ab = await fetchArrayBufferWithTimeout(url);
+          return {ab, url};
+        }catch(e){
+          tried.push(`${url} → ${e.message||e}`);
+        }
       }
     }
     throw new Error(`모든 데이터 소스 실패:\n${tried.join('\n')}`);
   }
 
-  /* 엑셀 로드 (지역값은 엑셀 그대로 사용) */
   async function loadLocal(){
     statusEl.classList.remove('hidden'); errorEl.classList.add('hidden'); errorEl.textContent='';
     try{
@@ -362,21 +353,18 @@
       renderScreen();
       buildExportRanges();
 
-      // 디버그: 어떤 소스를 사용했는지 콘솔 표시(운영화면엔 보이지 않음)
       console.log('[BDR-U] 데이터 소스:', usedUrl);
-
       search.addEventListener('input',applyFilter);
       region.addEventListener('change',applyFilter);
     }catch(err){
       statusEl.classList.add('hidden');
       errorEl.classList.remove('hidden');
-      errorEl.innerHTML = `데이터 로드 오류: ${String(err.message||err)}<br><small>네트워크가 불안정하면 새로고침 해주세요.</small>`;
+      errorEl.innerHTML = `데이터 로드 오류: ${String(err.message||err)}<br><small>가장 쉬운 해결: <code>/data/univ.xlsx</code>를 같은 사이트에 올려주세요.</small>`;
       console.error('[BDR-U] load error', err);
     }
   }
   loadLocal();
 
-  /* 4:5 이미지 다운로드 – 헤더 실측 + autoscale */
   document.getElementById('btnExport').addEventListener('click', async ()=>{
     const [s,e]=(exportRangeEl.value||'1-10').split('-').map(n=>parseInt(n,10));
     const startIdx=Math.max(0,(s||1)-1), endIdx=Math.min(FILTERED.length,(e||10));
@@ -400,14 +388,12 @@
 
     stage.querySelector('#exportList').innerHTML=slice.map(exportCardHTML).join('');
 
-    // 헤더 높이 반영 후 가용 높이
     const headerH = stage.querySelector('#exHeader').offsetHeight;
     const rootH = stage.clientHeight;
     const guard = 16;
     const fitH = rootH - headerH - guard;
     stage.querySelector('#exFit').style.height = fitH + 'px';
 
-    // autoscale
     const content = stage.querySelector('#exContent');
     const contentH = content.scrollHeight;
     const scale = Math.min(1, (fitH - 6) / contentH);
